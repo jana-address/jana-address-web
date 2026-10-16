@@ -1,0 +1,20 @@
+# dependencies / build
+node_modules/
+dist/
+*.tsbuildinfo
+
+# hackathon organizer data: never commit (must not leave the hackathon)
+train.json
+sample_input.json
+sample_output.json
+**/train*.json
+**/sample_input*.json
+**/sample_output*.json
+organizer_data/
+
+# env / local
+.env
+.env.*
+!.env.example
+.DS_Store
+*.log

@@ -1,0 +1,14 @@
+.git
+node_modules
+dist
+*.tsbuildinfo
+.env
+.env.*
+organizer_data
+**/train*.json
+**/sample_input*.json
+**/sample_output*.json
+Dockerfile
+.dockerignore
+README.md
+*.log
