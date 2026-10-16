@@ -1,0 +1,210 @@
+/* Tokens: see jana_post_design.md (janapost.kz + Jańa Post app) */
+:root {
+  --jp-primary: #008c00;
+  --jp-logo: #1b8918;
+  --jp-bg: #f6f6f6;
+  --jp-surface: #ffffff;
+  --jp-stroke: #dfdfdf;
+  --jp-text: #12151a;
+  --jp-text-secondary: #5e5e60;
+  --jp-success-soft: #d4f7e3;
+  --jp-success-text: #0a6b1f;
+  --jp-danger-soft: #fdecee;
+  --jp-danger-text: #b3122b;
+  --jp-neutral-soft: #ebebeb;
+  --jp-radius-md: 12px;
+  --jp-radius-xl: 20px;
+  --jp-font: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  background: var(--jp-bg);
+  color: var(--jp-text);
+  font-family: var(--jp-font);
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+.page {
+  min-height: 100vh;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 70px;
+  margin: 16px 32px 0;
+  padding: 0 24px;
+  background: var(--jp-surface);
+  border: 1px solid var(--jp-stroke);
+  border-radius: var(--jp-radius-xl);
+}
+
+.logo {
+  display: flex;
+  flex-direction: column;
+  line-height: 1;
+  color: var(--jp-logo);
+}
+
+.logo-main {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.6px;
+}
+
+.logo-sub {
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: 0.6px;
+}
+
+.divider {
+  width: 1px;
+  height: 24px;
+  background: var(--jp-stroke);
+}
+
+.product {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--jp-text-secondary);
+}
+
+.container {
+  max-width: 720px;
+  padding: 40px 32px 64px;
+}
+
+h1 {
+  margin: 0 0 8px;
+  font-size: 40px;
+  line-height: 48px;
+  font-weight: 600;
+  letter-spacing: -0.8px;
+}
+
+.lead {
+  margin: 0 0 32px;
+  font-size: 17px;
+  line-height: 26px;
+  color: var(--jp-text-secondary);
+}
+
+.card {
+  padding: 24px;
+  background: var(--jp-surface);
+  border-radius: var(--jp-radius-md);
+}
+
+h2 {
+  margin: 0 0 16px;
+  font-size: 20px;
+  line-height: 28px;
+  font-weight: 600;
+}
+
+.rows {
+  margin: 0 0 20px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--jp-stroke);
+}
+
+.row dt {
+  font-size: 15px;
+  color: var(--jp-text-secondary);
+}
+
+.row dd {
+  margin: 0;
+}
+
+.mono {
+  font-variant-numeric: tabular-nums;
+  font-size: 14px;
+}
+
+.badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 16px;
+}
+
+.badge-ok {
+  background: var(--jp-success-soft);
+  color: var(--jp-success-text);
+}
+
+.badge-down {
+  background: var(--jp-danger-soft);
+  color: var(--jp-danger-text);
+}
+
+.badge-wait {
+  background: var(--jp-neutral-soft);
+  color: var(--jp-text-secondary);
+}
+
+.error {
+  margin: 0 0 16px;
+  font-size: 14px;
+  color: var(--jp-danger-text);
+}
+
+.button {
+  padding: 12px 20px;
+  border: 0;
+  border-radius: var(--jp-radius-md);
+  background: var(--jp-primary);
+  color: #fff;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.button:focus-visible {
+  outline: 3px solid rgb(0 140 0 / 30%);
+  outline-offset: 2px;
+}
+
+@media (max-width: 600px) {
+  .topbar {
+    margin: 0;
+    border-radius: 0;
+    border-width: 0 0 1px;
+  }
+
+  .container {
+    padding: 24px 16px 48px;
+  }
+
+  h1 {
+    font-size: 32px;
+    line-height: 40px;
+  }
+}
