@@ -1,0 +1,83 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: npm ci
+        run: npm ci
+
+      - name: typecheck
+        run: npm run typecheck
+
+      - name: build
+        run: npm run build
+
+      - name: npm audit
+        run: npm audit --audit-level=high
+
+      - name: no external URLs in the bundle
+        run: |
+          urls="$(grep -rhoE 'https?://[a-zA-Z0-9.-]+' dist | sort -u | grep -vE '^https?://(www\.w3\.org|react\.dev)$' || true)"
+          if [ -n "$urls" ]; then
+            echo "::error::the app must work offline, external URLs found in dist:"
+            echo "$urls"
+            exit 1
+          fi
+
+  docker:
+    name: docker
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+
+      - name: build image
+        run: |
+          docker buildx build --load -t jana-address/web:ci .
+          docker image ls jana-address/web
+
+      - name: smoke test (nginx)
+        run: |
+          docker run -d --name web -p 3000:8080 jana-address/web:ci
+          for _ in $(seq 1 20); do curl -fsS localhost:3000/healthz && break; sleep 1; done
+          curl -fsS localhost:3000/ | grep -q '<div id="root">'
+          curl -fsSI localhost:3000/ | grep -qi '^content-security-policy:'
+          test "$(curl -s -o /dev/null -w '%{http_code}' localhost:3000/some/spa/route)" = 200
+          test "$(curl -s -o /dev/null -w '%{http_code}' localhost:3000/assets/missing.js)" = 404
+          test "$(docker inspect -f '{{.Config.User}}' jana-address/web:ci)" = 101
+
+      - name: logs on failure
+        if: failure()
+        run: docker logs web
+
+      - name: cleanup
+        if: always()
+        run: docker rm -f web
