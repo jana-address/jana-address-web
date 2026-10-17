@@ -40,9 +40,10 @@ jobs:
       - name: npm audit
         run: npm audit --audit-level=high
 
+      # localhost and github.com appear only as text on /docs (run instructions); the CSP blocks any external load anyway
       - name: no external URLs in the bundle
         run: |
-          urls="$(grep -rhoE 'https?://[a-zA-Z0-9.-]+' dist | sort -u | grep -vE '^https?://(www\.w3\.org|react\.dev)$' || true)"
+          urls="$(grep -rhoE 'https?://[a-zA-Z0-9.-]+' dist | sort -u | grep -vE '^https?://(www\.w3\.org|react\.dev|localhost|github\.com)$' || true)"
           if [ -n "$urls" ]; then
             echo "::error::the app must work offline, external URLs found in dist:"
             echo "$urls"
