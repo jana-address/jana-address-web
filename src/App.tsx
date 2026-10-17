@@ -1,54 +1,70 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
+import { errorMessage, isAbort, parseOne, type ParseResponse } from './api'
+import { BatchPanel } from './components/BatchPanel'
+import { ConfidenceBadge } from './components/ConfidenceBadge'
+import { FieldsTable } from './components/FieldsTable'
+import { HealthIndicator } from './components/HealthIndicator'
+import { Highlight, HighlightLegend } from './components/Highlight'
 
-type Health = {
-  status: 'ok' | 'degraded'
-  version: string
-  db: 'ok' | 'down'
-}
-
-type Check =
-  | { state: 'loading' }
-  | { state: 'ok'; health: Health }
-  | { state: 'error'; message: string }
-
-async function fetchHealth(signal: AbortSignal): Promise<Health> {
-  const res = await fetch('/api/v1/health', { signal, headers: { Accept: 'application/json' } })
-  if (!res.ok) throw new Error(`HTTP ${res.status}`)
-  return (await res.json()) as Health
-}
-
-function Badge({ tone, children }: { tone: 'ok' | 'down' | 'wait'; children: string }) {
-  return <span className={`badge badge-${tone}`}>{children}</span>
-}
+const EXAMPLES = [
+  'город Алматы/Алматы қаласы, Мкр Аксай 3а, 59, кв 70',
+  'Нурсити 2 микрорайон 11дом 5 подьезд 239 кв',
+  'Туран 55/6 магазин береке 4подьезд 9этаж',
+  'Турксибский район, Рыбинский переулок, дом 4',
+  'город Актобе/Ақтөбе қаласы, Назарбаева8, кв 12',
+]
 
 export default function App() {
-  const [check, setCheck] = useState<Check>({ state: 'loading' })
+  const [input, setInput] = useState('')
+  const [data, setData] = useState<ParseResponse | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const ctrlRef = useRef<AbortController | null>(null)
+  const cardRef = useRef<HTMLElement>(null)
 
-  const load = useCallback((signal: AbortSignal) => {
-    setCheck({ state: 'loading' })
-    fetchHealth(signal)
-      .then((health) => setCheck({ state: 'ok', health }))
+  useEffect(() => () => ctrlRef.current?.abort(), [])
+
+  const run = useCallback((raw: string) => {
+    if (!raw.trim()) return
+    ctrlRef.current?.abort()
+    const ctrl = new AbortController()
+    ctrlRef.current = ctrl
+    setLoading(true)
+    setError(null)
+    parseOne(raw, ctrl.signal)
+      .then((res) => {
+        if (!ctrl.signal.aborted) setData(res)
+      })
       .catch((err: unknown) => {
-        if (signal.aborted) return
-        setCheck({ state: 'error', message: err instanceof Error ? err.message : String(err) })
+        if (isAbort(err) || ctrl.signal.aborted) return
+        setData(null)
+        setError(errorMessage(err))
+      })
+      .finally(() => {
+        if (ctrlRef.current === ctrl) setLoading(false)
       })
   }, [])
 
-  useEffect(() => {
-    const ctrl = new AbortController()
-    load(ctrl.signal)
-    return () => ctrl.abort()
-  }, [load])
+  const pickExample = useCallback(
+    (raw: string) => {
+      setInput(raw)
+      run(raw)
+    },
+    [run],
+  )
 
-  const api =
-    check.state === 'loading' ? <Badge tone="wait">проверяем…</Badge>
-    : check.state === 'ok' ? <Badge tone="ok">работает</Badge>
-    : <Badge tone="down">недоступен</Badge>
+  const pickFromBatch = useCallback(
+    (raw: string) => {
+      pickExample(raw)
+      cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    },
+    [pickExample],
+  )
 
-  const db =
-    check.state === 'loading' ? <Badge tone="wait">проверяем…</Badge>
-    : check.state === 'ok' && check.health.db === 'ok' ? <Badge tone="ok">подключена</Badge>
-    : <Badge tone="down">нет связи</Badge>
+  function onSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    run(input)
+  }
 
   return (
     <div className="page">
@@ -59,41 +75,62 @@ export default function App() {
         </div>
         <span className="divider" />
         <span className="product">Address</span>
+        <HealthIndicator />
       </header>
 
       <main className="container">
         <h1>Разбор адресов</h1>
         <p className="lead">
-          Каркас проекта: React, Go и PostgreSQL в Docker. Здесь появятся загрузка файла,
-          таблица разбора и ручная проверка записей.
+          Раскладываем адрес из одной строки на поля, показываем, откуда взято каждое значение, и
+          отмечаем записи для ручной проверки.
         </p>
 
-        <section className="card">
-          <h2>Состояние сервиса</h2>
-          <dl className="rows">
-            <div className="row">
-              <dt>API</dt>
-              <dd>{api}</dd>
+        <section className="card" ref={cardRef}>
+          <h2>Проверить строку</h2>
+          <form className="parse-form" onSubmit={onSubmit}>
+            <input
+              className="input"
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="Введите адрес одной строкой"
+              aria-label="Адрес"
+              autoComplete="off"
+              spellCheck={false}
+            />
+            <button type="submit" className="button" disabled={loading || !input.trim()}>
+              {loading ? 'Разбираем…' : 'Разобрать'}
+            </button>
+          </form>
+
+          <div className="chips" aria-label="Примеры">
+            {EXAMPLES.map((ex) => (
+              <button key={ex} type="button" className="chip" onClick={() => pickExample(ex)}>
+                {ex}
+              </button>
+            ))}
+          </div>
+
+          {error && (
+            <p className="error" role="alert">
+              {error}
+            </p>
+          )}
+
+          {data && (
+            <div className={`result${loading ? ' stale' : ''}`} aria-busy={loading}>
+              <div className="result-head">
+                <h3>Результат</h3>
+                <ConfidenceBadge status={data.status} confidence={data.result.confidence} />
+              </div>
+              <Highlight raw={data.result.raw_address} spans={data.spans} />
+              <HighlightLegend />
+              <FieldsTable record={data.result} sources={data.sources} />
             </div>
-            <div className="row">
-              <dt>База данных</dt>
-              <dd>{db}</dd>
-            </div>
-            <div className="row">
-              <dt>Версия</dt>
-              <dd className="mono">{check.state === 'ok' ? check.health.version : '—'}</dd>
-            </div>
-          </dl>
-          {check.state === 'error' && <p className="error">Ошибка: {check.message}</p>}
-          <button
-            type="button"
-            className="button"
-            onClick={() => load(new AbortController().signal)}
-            disabled={check.state === 'loading'}
-          >
-            Обновить
-          </button>
+          )}
         </section>
+
+        <BatchPanel onPick={pickFromBatch} />
       </main>
     </div>
   )
