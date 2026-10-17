@@ -4,6 +4,7 @@ import { BatchPanel } from './components/BatchPanel'
 import { ConfidenceBadge } from './components/ConfidenceBadge'
 import { FieldsTable } from './components/FieldsTable'
 import { HealthIndicator } from './components/HealthIndicator'
+import { ThemeToggle } from './components/ThemeToggle'
 import { Highlight, HighlightLegend } from './components/Highlight'
 import { Docs } from './pages/Docs'
 
@@ -73,6 +74,7 @@ export default function App() {
           </a>
         </nav>
         <HealthIndicator />
+        <ThemeToggle />
       </header>
 
       {/* the parse page stays mounted on /docs: an uploaded batch and its edits survive a visit to the docs */}

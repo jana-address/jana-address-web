@@ -1,43 +1,13 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
-import { FIELDS, errorMessage, parseOne, type ParseResponse } from '../api'
+import { useEffect, useState, type ReactNode } from 'react'
 import { CodeBlock } from '../components/CodeBlock'
-import { ConfidenceBadge } from '../components/ConfidenceBadge'
-import { Highlight } from '../components/Highlight'
-import { FIELD_LABELS, SOURCE_META } from '../fields'
 
 const SECTIONS = [
-  { id: 'start', title: 'Быстрый старт' },
-  { id: 'batch', title: 'Пакетный метод (для жюри)' },
+  { id: 'batch', title: 'Пакетный разбор' },
   { id: 'parse', title: 'Разбор одной строки' },
   { id: 'health', title: 'Состояние сервиса' },
-  { id: 'fields', title: 'Поля и правила заполнения' },
+  { id: 'fields', title: 'Поля ответа' },
   { id: 'confidence', title: 'Уверенность и статусы' },
-  { id: 'directory', title: 'Справочники и восстановление' },
-  { id: 'offline', title: 'Офлайн и обновление справочника' },
-  { id: 'examples', title: 'Примеры' },
 ] as const
-
-/** Strings from the case (demo/tz_examples.json in jana-address-api). Results are not stored: the page asks the API. */
-const EXAMPLES = [
-  'город Алматы/Алматы қаласы, Мкр Аксай 3а, 59, кв 70',
-  '66квартал 12дом 69квартира',
-  'Ул .Курильская 9 кв 1',
-  'Туран 55/6 магазин береке 4подьезд 9этаж',
-  'Нурсити 2 микрорайон 11дом 5 подьезд 239 кв',
-  'Турксибский район, Рыбинский переулок, дом 4',
-  'Кулманова 133 flat 191',
-  'жуалы 19',
-  'город Актобе/Ақтөбе қаласы, Назарбаева8, кв 12',
-  'Боралдай, ул Ленина 12а',
-  'Карагандинская обл, г. Темиртау, ул. Мира 4, кв. 15',
-  'Абай көшесі 5 үй 7 пәтер',
-  'г.Алматы, пр. Достык 1/2, кв 5',
-  'Qazpost Солнечный, Мира 7',
-]
-
-const QUICK_START = `git clone --recurse-submodules https://github.com/jana-address/jana-address-api.git \\
-  && cd jana-address-api \\
-  && docker compose up`
 
 const BATCH_CURL = `curl -s -XPOST http://localhost:8080/api/v1/parse/batch \\
   --data-binary @sample_input.json -o result.json`
@@ -122,9 +92,6 @@ const HEALTH_OUTPUT = `{
 const HEALTH_CURL = `curl -s http://localhost:8080/api/v1/health
 curl -s http://localhost:8080/livez
 curl -s http://localhost:8080/readyz`
-
-const OFFLINE_RUN = `OFFLINE=false docker compose up
-docker compose run --rm api migrate`
 
 const FIELD_RULES: ReadonlyArray<{ key: string; label: string; rule: ReactNode; example: string }> = [
   { key: 'id', label: 'ID записи', rule: 'Как во входном файле, тем же типом: строка остаётся строкой, число числом.', example: 'rec_00417' },
@@ -225,135 +192,14 @@ function Toc({ active }: { active: string }) {
   )
 }
 
-type Examples =
-  | { state: 'loading' }
-  | { state: 'error'; message: string }
-  | { state: 'done'; items: Array<{ raw: string; data: ParseResponse | null; error: string }> }
-
-function LiveExamples({ onSettled }: { onSettled: () => void }) {
-  const [st, setSt] = useState<Examples>({ state: 'loading' })
-  const [attempt, setAttempt] = useState(0)
-
-  useEffect(() => {
-    const ctrl = new AbortController()
-    setSt({ state: 'loading' })
-    Promise.allSettled(EXAMPLES.map((raw) => parseOne(raw, ctrl.signal))).then((results) => {
-      if (ctrl.signal.aborted) return
-      if (results.every((r) => r.status === 'rejected')) {
-        const first = results[0] as PromiseRejectedResult
-        setSt({ state: 'error', message: errorMessage(first.reason) })
-        return
-      }
-      setSt({
-        state: 'done',
-        items: results.map((r, i) => ({
-          raw: EXAMPLES[i],
-          data: r.status === 'fulfilled' ? r.value : null,
-          error: r.status === 'rejected' ? errorMessage(r.reason) : '',
-        })),
-      })
-    })
-    return () => ctrl.abort()
-  }, [attempt])
-
-  useEffect(() => {
-    if (st.state !== 'loading') onSettled()
-  }, [st.state, onSettled])
-
-  if (st.state === 'loading') {
-    return (
-      <p className="hint" role="status">
-        Разбираем {EXAMPLES.length} строк через API…
-      </p>
-    )
-  }
-  if (st.state === 'error') {
-    return (
-      <div className="error" role="alert">
-        <p className="error-text">Примеры не загрузились: {st.message}</p>
-        <p className="error-text">
-          Результаты на этой странице не записаны заранее, их считает запущенный API. Поднимите стек
-          командой <code>docker compose up</code> и повторите.
-        </p>
-        <button type="button" className="button button-secondary" onClick={() => setAttempt(attempt + 1)}>
-          Повторить
-        </button>
-      </div>
-    )
-  }
-  return (
-    <ol className="examples">
-      {st.items.map(({ raw, data, error }) => (
-        <li key={raw} className="example">
-          {data ? (
-            <>
-              <div className="example-head">
-                <Highlight raw={raw} spans={data.spans} />
-                <ConfidenceBadge status={data.status} confidence={data.result.confidence} />
-              </div>
-              <dl className="example-fields">
-                {FIELDS.filter((f) => data.result[f] !== null).map((f) => {
-                  const source = data.sources[f]
-                  return (
-                    <div key={f}>
-                      <dt>{FIELD_LABELS[f]}</dt>
-                      <dd>
-                        {data.result[f]}
-                        {source === 'directory' && (
-                          <span className="badge src-directory" title={SOURCE_META.directory.title}>
-                            {SOURCE_META.directory.label}
-                          </span>
-                        )}
-                      </dd>
-                    </div>
-                  )
-                })}
-              </dl>
-            </>
-          ) : (
-            <>
-              <p className="highlight">{raw}</p>
-              <p className="error">Не удалось разобрать: {error}</p>
-            </>
-          )}
-        </li>
-      ))}
-    </ol>
-  )
-}
-
 export function Docs() {
   const [active, setActive] = useState<string>(SECTIONS[0].id)
 
-  // The SPA renders after the browser tried the #anchor, so scroll to it here, and once more when the live
-  // examples at the bottom have loaded: until then the page may be too short to bring the section to the top.
-  const pendingHash = useRef(decodeURIComponent(window.location.hash.slice(1)))
-
-  const scrollToHash = useCallback(() => {
-    const id = pendingHash.current
+  // the SPA renders after the browser tried the #anchor, so scroll to it here
+  useEffect(() => {
+    const id = decodeURIComponent(window.location.hash.slice(1))
     if (id) document.getElementById(id)?.scrollIntoView()
   }, [])
-
-  const onExamplesSettled = useCallback(() => {
-    scrollToHash()
-    pendingHash.current = ''
-  }, [scrollToHash])
-
-  useEffect(() => {
-    scrollToHash()
-    const stop = () => {
-      pendingHash.current = '' // the reader scrolls on their own
-    }
-    const opts = { once: true, passive: true }
-    window.addEventListener('wheel', stop, opts)
-    window.addEventListener('touchstart', stop, opts)
-    window.addEventListener('keydown', stop, opts)
-    return () => {
-      window.removeEventListener('wheel', stop)
-      window.removeEventListener('touchstart', stop)
-      window.removeEventListener('keydown', stop)
-    }
-  }, [scrollToHash])
 
   useEffect(() => {
     if (typeof IntersectionObserver === 'undefined') return
@@ -375,34 +221,15 @@ export function Docs() {
     <main className="container docs">
       <h1>Документация</h1>
       <p className="lead">
-        Как запустить Jana Address, как вызвать API для проверки и по каким правилам заполняются поля.
+        HTTP API Jana Address: методы, формат запроса и ответа, поля и статусы.
       </p>
 
       <div className="docs-layout">
         <Toc active={active} />
 
         <div className="docs-content">
-          <Section id="start" title="Быстрый старт">
-            <p>
-              Нужны Docker и Docker Compose. Интернет нужен только для первой сборки образов, дальше всё
-              работает без сети.
-            </p>
-            <CodeBlock label="bash" code={QUICK_START} />
-            <ul className="doc-list">
-              <li>
-                Интерфейс: <code>http://localhost:3000</code>
-              </li>
-              <li>
-                API: <code>http://localhost:8080</code>
-              </li>
-            </ul>
-            <p>
-              Сервисы стартуют по цепочке: база → API → интерфейс. API готов, когда{' '}
-              <code>/readyz</code> отвечает 200.
-            </p>
-          </Section>
 
-          <Section id="batch" title="Пакетный метод (для жюри)">
+          <Section id="batch" title="Пакетный разбор">
             <p className="endpoint">
               <span className="method">POST</span> <code>/api/v1/parse/batch</code>
             </p>
@@ -457,7 +284,7 @@ export function Docs() {
                 <code>400</code> с телом <code>{'{"error": "…"}'}</code> только тогда, когда всё тело не
                 читается как JSON. Ошибка в отдельной записи ответ не ломает.
               </li>
-              <li>Скорость: 1 000 записей примерно за 5 мс, 100 000 примерно за 0,6 с.</li>
+              <li>1 000 записей разбираются примерно за 5 мс, 100 000 — примерно за 0,6 с.</li>
             </ul>
 
             <CodeBlock label="bash" code={BATCH_CURL} />
@@ -468,8 +295,7 @@ export function Docs() {
               <CodeBlock label="result.json" code={BATCH_OUTPUT} />
             </div>
             <p className="hint">
-              Района «Ауэзовский» в строке нет: его восстанавливает справочник по микрорайону Аксай. Для этой
-              строки уверенность 0,91–0,95.
+              Района «Ауэзовский» в строке нет: значение восстановлено из справочника.
             </p>
           </Section>
 
@@ -520,8 +346,8 @@ export function Docs() {
                 <code>embedded</code> (снимок в образе) или <code>stat.gov.kz</code> (скачан при обновлении).
               </li>
               <li>
-                <code>last_check</code> и <code>last_error</code> появляются после первой проверки обновлений
-                при <code>OFFLINE=false</code>; <code>last_error</code> — только если проверка не удалась.
+                <code>last_check</code> и <code>last_error</code> есть, только если включено обновление
+                справочника; <code>last_error</code> — только после неудачной проверки.
               </li>
               <li>
                 <code>/livez</code>: процесс жив. <code>/readyz</code>: 200, если база отвечает, иначе 503.
@@ -534,7 +360,7 @@ export function Docs() {
             <CodeBlock label="bash" code={HEALTH_CURL} />
           </Section>
 
-          <Section id="fields" title="Поля и правила заполнения">
+          <Section id="fields" title="Поля ответа">
             <div className="table-wrap">
               <table className="doc-table">
                 <thead>
@@ -581,104 +407,10 @@ export function Docs() {
                 </span>
               </li>
             </ul>
-            <h3>Ручная проверка в интерфейсе</h3>
-            <ol className="doc-list">
-              <li>
-                На странице <a href="/">«Разбор»</a> в блоке «Пакетная обработка» загрузите файл .json в
-                формате жюри.
-              </li>
-              <li>
-                Таблица открывается на неуверенных записях: включены чипы «Проверить» и «Не разобрано». «Все»
-                показывает весь набор, «Исправлено» — записи, проверенные вручную. На странице 200 строк.
-              </li>
-              <li>
-                Нажмите на строку или Enter: откроется панель с подсветкой исходной строки, источником каждого
-                поля и подсказкой.
-              </li>
-              <li>
-                Поправьте поля, пустое поле означает <code>null</code>. «Сохранить» запоминает правку,
-                «Принять как есть» отмечает запись проверенной без изменений, «Сбросить» убирает правку. Enter —
-                «Сохранить и следующая»: переход к следующей неуверенной записи. Esc закрывает панель.
-              </li>
-              <li>
-                «Скачать JSON» выгружает весь набор с правками в формате жюри: 14 ключей, порядок записей
-                как во входном файле. У исправленных и проверенных записей <code>confidence</code> = 1.
-                «Только исправления» выгружает только их.
-              </li>
-              <li>
-                Правки хранятся в браузере для файла с тем же именем, размером и числом записей. После
-                перезагрузки загрузите тот же файл, и правки восстановятся.
-              </li>
-            </ol>
           </Section>
 
-          <Section id="directory" title="Справочники и восстановление">
-            <p>
-              <strong>КАТО</strong> — классификатор административно-территориальных объектов (stat.gov.kz):
-              15 586 строк, 20 регионов, около 270 районов и около 13 тыс. населённых пунктов, с названиями на
-              русском и казахском. Снимок встроен в образ API, при старте записывается в PostgreSQL миграциями
-              и хранится с номером версии.
-            </p>
-            <p>
-              <strong>Ручные таблицы</strong>: синонимы и латиница, старые названия (Нур-Султан → Астана,
-              Капшагай → Конаев), районы городов, микрорайоны Алматы → район.
-            </p>
-            <p>Если в строке нет области, города или района, их восстанавливает справочник:</p>
-            <ul className="doc-list">
-              <li>город и область по району;</li>
-              <li>область и район по селу (КАТО);</li>
-              <li>район Алматы по микрорайону.</li>
-            </ul>
-            <p>
-              У каждого поля есть источник: <span className="badge src-string">из строки</span> или{' '}
-              <span className="badge src-directory">справочник</span>. В API это поле <code>sources</code>,
-              в интерфейсе — бейдж рядом со значением.
-            </p>
-            <h3>Правила безопасности</h3>
-            <ul className="doc-list">
-              <li>
-                Село из КАТО берётся только после «с.», «п.», «ауылы», «г.» или отдельной частью рядом с
-                написанным районом или областью. Сотни сёл называются «Абай», «Достык», «Береке», как улицы,
-                поэтому слово перед номером дома селом не считается.
-              </li>
-              <li>
-                Если сёл с одним названием несколько, выбирается то, что в написанном районе или области.
-                Если их в строке нет, берётся крупный пункт из ручной таблицы.
-              </li>
-            </ul>
-          </Section>
 
-          <Section id="offline" title="Офлайн и обновление справочника">
-            <ul className="doc-list">
-              <li>
-                <code>OFFLINE=true</code> по умолчанию: API не ходит в сеть, финальный прогон идёт без
-                интернета.
-              </li>
-              <li>
-                С <code>OFFLINE=false</code> API раз в <code>KATO_REFRESH_INTERVAL</code> (по умолчанию{' '}
-                <code>168h</code>) находит актуальный xlsx на странице классификатора stat.gov.kz и сравнивает
-                sha256. Новый файл проверяется: не меньше 10 тыс. строк, 20 регионов, уникальные коды,
-                отличие от прошлой версии не больше 15%. После этого парсер переключается на новую версию без
-                перезапуска.
-              </li>
-              <li>
-                Если загрузка или проверка не прошла, остаётся старая версия, а ошибка видна в{' '}
-                <code>/api/v1/health</code> и в таблице <code>kato_sync_log</code>.
-              </li>
-              <li>
-                <code>docker compose run --rm api migrate</code> применяет миграции вручную.
-              </li>
-            </ul>
-            <CodeBlock label="bash" code={OFFLINE_RUN} />
-          </Section>
 
-          <Section id="examples" title="Примеры">
-            <p>
-              Строки из ТЗ. Результат не записан в страницу: каждую строку сейчас разбирает API через{' '}
-              <code>POST /api/v1/parse</code>.
-            </p>
-            <LiveExamples onSettled={onExamplesSettled} />
-          </Section>
         </div>
       </div>
     </main>
