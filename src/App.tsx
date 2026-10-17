@@ -45,6 +45,13 @@ export default function App() {
       })
   }, [])
 
+  // parse while typing: the hint follows the input
+  useEffect(() => {
+    if (!input.trim()) return
+    const t = window.setTimeout(() => run(input), 300)
+    return () => window.clearTimeout(t)
+  }, [input, run])
+
   const pickExample = useCallback(
     (raw: string) => {
       setInput(raw)
@@ -102,6 +109,17 @@ export default function App() {
               {loading ? 'Разбираем…' : 'Разобрать'}
             </button>
           </form>
+
+          {data?.suggestion && data.suggestion !== input.trim() && (
+            <button
+              type="button"
+              className="suggestion"
+              onClick={() => setInput(data.suggestion)}
+              title="Подставить в поле"
+            >
+              <span className="suggestion-label">Подсказка:</span> {data.suggestion}
+            </button>
+          )}
 
           <div className="chips" aria-label="Примеры">
             {EXAMPLES.map((ex) => (

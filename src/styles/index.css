@@ -750,3 +750,26 @@ h3 {
     grid-template-columns: repeat(3, 1fr);
   }
 }
+
+/* hint under the input: the parsed address in a clean form */
+.suggestion {
+  display: block;
+  width: 100%;
+  margin: 10px 0 0;
+  padding: 10px 14px;
+  border: 1px dashed var(--jp-primary);
+  border-radius: var(--jp-radius-md);
+  background: var(--jp-surface);
+  color: var(--jp-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.suggestion:hover,
+.suggestion:focus-visible {
+  background: var(--jp-success-soft);
+}
+.suggestion-label {
+  font-weight: 600;
+  color: var(--jp-success-text);
+}

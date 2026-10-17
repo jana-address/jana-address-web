@@ -29,6 +29,8 @@ export type ParseResponse = {
   spans: Span[]
   sources: Partial<Record<Field, Source>>
   status: Status
+  /** The address in a clean form, shown as a hint under the input. */
+  suggestion: string
 }
 
 export type BatchResponse = {
@@ -136,7 +138,8 @@ export async function parseOne(rawAddress: string, signal?: AbortSignal): Promis
     typeof data.status === 'string' && (STATUSES as readonly string[]).includes(data.status)
       ? (data.status as Status)
       : statusOf(result.confidence)
-  return { result, spans, sources, status }
+  const suggestion = typeof data.suggestion === 'string' ? data.suggestion : ''
+  return { result, spans, sources, status, suggestion }
 }
 
 /** Sends the file body unchanged (jury format) and keeps the raw response for download. */
