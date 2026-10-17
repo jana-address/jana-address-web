@@ -1,13 +1,18 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { CodeBlock } from '../components/CodeBlock'
+import type { TranslationKey } from '../i18n/translations'
+import { useI18n } from '../i18n/useI18n'
 
+// section titles follow the interface language; the reference text itself is in Russian
 const SECTIONS = [
-  { id: 'batch', title: 'Пакетный разбор' },
-  { id: 'parse', title: 'Разбор одной строки' },
-  { id: 'health', title: 'Состояние сервиса' },
-  { id: 'fields', title: 'Поля ответа' },
-  { id: 'confidence', title: 'Уверенность и статусы' },
-] as const
+  { id: 'batch', title: 'docs.sec.batch' },
+  { id: 'parse', title: 'docs.sec.parse' },
+  { id: 'health', title: 'docs.sec.health' },
+  { id: 'fields', title: 'docs.sec.fields' },
+  { id: 'confidence', title: 'docs.sec.confidence' },
+] as const satisfies ReadonlyArray<{ id: string; title: TranslationKey }>
+
+type SectionId = (typeof SECTIONS)[number]['id']
 
 const BATCH_CURL = `curl -s -XPOST http://localhost:8080/api/v1/parse/batch \\
   --data-binary @sample_input.json -o result.json`
@@ -145,7 +150,9 @@ const FIELD_RULES: ReadonlyArray<{ key: string; label: string; rule: ReactNode; 
   { key: 'confidence', label: 'Уверенность', rule: 'Число от 0 до 1, см. «Уверенность и статусы».', example: '0.95' },
 ]
 
-function Section({ id, title, children }: { id: string; title: string; children: ReactNode }) {
+function Section({ id, children }: { id: SectionId; children: ReactNode }) {
+  const { t } = useI18n()
+  const title = t(SECTIONS.find((s) => s.id === id)!.title)
   return (
     <section id={id} className="card doc-section" aria-labelledby={`${id}-title`}>
       <h2 id={`${id}-title`}>
@@ -154,15 +161,16 @@ function Section({ id, title, children }: { id: string; title: string; children:
         </a>
         {title}
       </h2>
-      {children}
+      <div lang="ru">{children}</div>
     </section>
   )
 }
 
 function Toc({ active }: { active: string }) {
+  const { t } = useI18n()
   const [open, setOpen] = useState(false)
   return (
-    <nav className="toc" aria-label="Содержание">
+    <nav className="toc" aria-label={t('docs.toc')}>
       <button
         type="button"
         className="toc-toggle"
@@ -170,7 +178,7 @@ function Toc({ active }: { active: string }) {
         aria-controls="toc-list"
         onClick={() => setOpen(!open)}
       >
-        Содержание
+        {t('docs.toc')}
         <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
           <path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
         </svg>
@@ -183,7 +191,7 @@ function Toc({ active }: { active: string }) {
               aria-current={active === s.id ? 'location' : undefined}
               onClick={() => setOpen(false)}
             >
-              {s.title}
+              {t(s.title)}
             </a>
           </li>
         ))}
@@ -193,6 +201,7 @@ function Toc({ active }: { active: string }) {
 }
 
 export function Docs() {
+  const { t } = useI18n()
   const [active, setActive] = useState<string>(SECTIONS[0].id)
 
   // the SPA renders after the browser tried the #anchor, so scroll to it here
@@ -219,17 +228,20 @@ export function Docs() {
 
   return (
     <main className="container docs">
-      <h1>Документация</h1>
-      <p className="lead">
-        HTTP API Jana Address: методы, формат запроса и ответа, поля и статусы.
-      </p>
+      <h1>{t('docs.title')}</h1>
+      <p className="lead">{t('docs.lead')}</p>
+      {t('docs.ruOnly') && (
+        <p className="notice">
+          {t('docs.ruOnly')}
+        </p>
+      )}
 
       <div className="docs-layout">
         <Toc active={active} />
 
         <div className="docs-content">
 
-          <Section id="batch" title="Пакетный разбор">
+          <Section id="batch">
             <p className="endpoint">
               <span className="method">POST</span> <code>/api/v1/parse/batch</code>
             </p>
@@ -299,7 +311,7 @@ export function Docs() {
             </p>
           </Section>
 
-          <Section id="parse" title="Разбор одной строки">
+          <Section id="parse">
             <p className="endpoint">
               <span className="method">POST</span> <code>/api/v1/parse</code>
             </p>
@@ -331,7 +343,7 @@ export function Docs() {
             <CodeBlock label="ответ" code={PARSE_OUTPUT} />
           </Section>
 
-          <Section id="health" title="Состояние сервиса">
+          <Section id="health">
             <p className="endpoint">
               <span className="method method-get">GET</span> <code>/api/v1/health</code>
             </p>
@@ -360,7 +372,7 @@ export function Docs() {
             <CodeBlock label="bash" code={HEALTH_CURL} />
           </Section>
 
-          <Section id="fields" title="Поля ответа">
+          <Section id="fields">
             <div className="table-wrap">
               <table className="doc-table">
                 <thead>
@@ -388,7 +400,7 @@ export function Docs() {
             </div>
           </Section>
 
-          <Section id="confidence" title="Уверенность и статусы">
+          <Section id="confidence">
             <ul className="status-list">
               <li>
                 <span className="badge conf-confident">Уверенно</span>

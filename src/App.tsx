@@ -1,16 +1,20 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
-import { errorMessage, isAbort, parseOne, type ParseResponse } from './api'
+import { isAbort, parseOne, type ParseResponse } from './api'
 import { BatchPanel } from './components/BatchPanel'
 import { ConfidenceBadge } from './components/ConfidenceBadge'
 import { FieldsTable } from './components/FieldsTable'
 import { ThemeToggle } from './components/ThemeToggle'
 import { Highlight, HighlightLegend } from './components/Highlight'
+import LanguageSwitcher from './i18n/LanguageSwitcher'
+import { errorText } from './i18n/errors'
+import type { TranslationKey } from './i18n/translations'
+import { useI18n } from './i18n/useI18n'
 import { Docs } from './pages/Docs'
 
 type Page = 'parse' | 'docs'
 
 const ROUTES: Record<Page, string> = { parse: '/', docs: '/docs' }
-const TITLES: Record<Page, string> = { parse: 'Jana Address', docs: 'Документация · Jana Address' }
+const TITLES: Record<Page, TranslationKey> = { parse: 'title.parse', docs: 'title.docs' }
 
 function pageOf(pathname: string): Page {
   return /^\/docs\/?$/.test(pathname) ? 'docs' : 'parse'
@@ -25,6 +29,7 @@ const EXAMPLES = [
 ]
 
 export default function App() {
+  const { t } = useI18n()
   const [page, setPage] = useState<Page>(() => pageOf(window.location.pathname))
 
   useEffect(() => {
@@ -34,8 +39,8 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    document.title = TITLES[page]
-  }, [page])
+    document.title = t(TITLES[page])
+  }, [page, t])
 
   // links to "/" and "/docs" switch the page without a reload, so an uploaded batch stays in memory
   useEffect(() => {
@@ -58,21 +63,24 @@ export default function App() {
   return (
     <div className="page">
       <header className="topbar">
-        <a className="logo" href="/" aria-label="Jańa Post Address: разбор адресов">
+        <a className="logo" href="/" aria-label={t('nav.logo')}>
           <span className="logo-main">JAŃA</span>
           <span className="logo-sub">POST</span>
         </a>
         <span className="divider" />
         <span className="product">Address</span>
-        <nav className="topnav" aria-label="Разделы">
+        <nav className="topnav" aria-label={t('nav.sections')}>
           <a href={ROUTES.parse} aria-current={page === 'parse' ? 'page' : undefined}>
-            Разбор
+            {t('nav.parse')}
           </a>
           <a href={ROUTES.docs} aria-current={page === 'docs' ? 'page' : undefined}>
-            Документация
+            {t('nav.docs')}
           </a>
         </nav>
-        <ThemeToggle />
+        <div className="topbar-actions">
+          <LanguageSwitcher />
+          <ThemeToggle />
+        </div>
       </header>
 
       {/* the parse page stays mounted on /docs: an uploaded batch and its edits survive a visit to the docs */}
@@ -83,10 +91,11 @@ export default function App() {
 }
 
 function ParsePage({ hidden }: { hidden: boolean }) {
+  const { t } = useI18n()
   const [input, setInput] = useState('')
   const [data, setData] = useState<ParseResponse | null>(null)
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<unknown>(null)
   const ctrlRef = useRef<AbortController | null>(null)
 
   useEffect(() => () => ctrlRef.current?.abort(), [])
@@ -105,7 +114,7 @@ function ParsePage({ hidden }: { hidden: boolean }) {
       .catch((err: unknown) => {
         if (isAbort(err) || ctrl.signal.aborted) return
         setData(null)
-        setError(errorMessage(err))
+        setError(err)
       })
       .finally(() => {
         if (ctrlRef.current === ctrl) setLoading(false)
@@ -134,27 +143,24 @@ function ParsePage({ hidden }: { hidden: boolean }) {
 
   return (
     <main className="container" hidden={hidden}>
-      <h1>Разбор адресов</h1>
-      <p className="lead">
-        Раскладываем адрес из одной строки на поля, показываем, откуда взято каждое значение, и
-        отмечаем записи для ручной проверки.
-      </p>
+      <h1>{t('parse.title')}</h1>
+      <p className="lead">{t('parse.subtitle')}</p>
 
       <section className="card">
-        <h2>Проверить строку</h2>
+        <h2>{t('single.title')}</h2>
         <form className="parse-form" onSubmit={onSubmit}>
           <input
             className="input"
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Введите адрес одной строкой"
-            aria-label="Адрес"
+            placeholder={t('single.placeholder')}
+            aria-label={t('single.inputLabel')}
             autoComplete="off"
             spellCheck={false}
           />
           <button type="submit" className="button" disabled={loading || !input.trim()}>
-            {loading ? 'Разбираем…' : 'Разобрать'}
+            {t(loading ? 'single.busy' : 'single.submit')}
           </button>
         </form>
 
@@ -163,13 +169,13 @@ function ParsePage({ hidden }: { hidden: boolean }) {
             type="button"
             className="suggestion"
             onClick={() => setInput(data.suggestion)}
-            title="Подставить в поле"
+            title={t('single.applyHint')}
           >
-            <span className="suggestion-label">Подсказка:</span> {data.suggestion}
+            <span className="suggestion-label">{t('common.hint')}</span> {data.suggestion}
           </button>
         )}
 
-        <div className="chips" aria-label="Примеры">
+        <div className="chips" aria-label={t('single.examples')}>
           {EXAMPLES.map((ex) => (
             <button key={ex} type="button" className="chip" onClick={() => pickExample(ex)}>
               {ex}
@@ -177,16 +183,16 @@ function ParsePage({ hidden }: { hidden: boolean }) {
           ))}
         </div>
 
-        {error && (
+        {error !== null && (
           <p className="error" role="alert">
-            {error}
+            {errorText(error, t)}
           </p>
         )}
 
         {data && (
           <div className={`result${loading ? ' stale' : ''}`} aria-busy={loading}>
             <div className="result-head">
-              <h3>Результат</h3>
+              <h3>{t('single.result')}</h3>
               <ConfidenceBadge status={data.status} confidence={data.result.confidence} />
             </div>
             <Highlight raw={data.result.raw_address} spans={data.spans} />

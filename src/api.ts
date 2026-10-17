@@ -1,3 +1,6 @@
+import { KeyedError } from './i18n/errors'
+import type { TranslationKey } from './i18n/translations'
+
 export const FIELDS = [
   'province',
   'city',
@@ -42,7 +45,8 @@ export type BatchResponse = {
   echoes: Echo[]
 }
 
-export class ApiError extends Error {}
+/** A failed API call; the message is looked up by key in the current language (i18n/errors.ts). */
+export class ApiError extends KeyedError {}
 
 const STATUSES: readonly Status[] = ['confident', 'review', 'unparsed']
 
@@ -65,7 +69,7 @@ function isObject(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v)
 }
 
-function httpMessage(status: number, body: string): string {
+function httpError(status: number, body: string): ApiError {
   let detail = ''
   try {
     const data: unknown = JSON.parse(body)
@@ -77,14 +81,14 @@ function httpMessage(status: number, body: string): string {
   } catch {
     detail = body.trim().slice(0, 200)
   }
-  const head =
-    status === 400 || status === 422 ? 'Сервер не принял запрос'
-    : status === 413 ? 'Файл слишком большой для сервера'
-    : status === 404 ? 'Метод API не найден'
-    : status >= 502 && status <= 504 ? 'Сервер разбора недоступен'
-    : status >= 500 ? 'Ошибка на сервере'
-    : 'Сервер ответил ошибкой'
-  return `${head} (HTTP ${status})${detail ? `: ${detail}` : ''}`
+  const key: TranslationKey =
+    status === 400 || status === 422 ? 'api.rejected'
+    : status === 413 ? 'api.tooLarge'
+    : status === 404 ? 'api.notFound'
+    : status >= 502 && status <= 504 ? 'api.unavailable'
+    : status >= 500 ? 'api.serverError'
+    : 'api.error'
+  return new ApiError(key, { status, detail: detail || undefined })
 }
 
 async function post(path: string, body: string, signal?: AbortSignal): Promise<string> {
@@ -98,10 +102,10 @@ async function post(path: string, body: string, signal?: AbortSignal): Promise<s
     })
   } catch (err) {
     if (isAbort(err)) throw err
-    throw new ApiError('Не удалось связаться с сервером. Проверьте, что API запущен.')
+    throw new ApiError('api.offline')
   }
   const text = await res.text()
-  if (!res.ok) throw new ApiError(httpMessage(res.status, text))
+  if (!res.ok) throw httpError(res.status, text)
   return text
 }
 
@@ -109,13 +113,13 @@ function parseJson(text: string): unknown {
   try {
     return JSON.parse(text)
   } catch {
-    throw new ApiError('Сервер вернул ответ не в формате JSON')
+    throw new ApiError('api.notJson')
   }
 }
 
 function toRecord(v: unknown): AddressRecord {
   if (!isObject(v) || typeof v.raw_address !== 'string') {
-    throw new ApiError('Ответ сервера не похож на разобранный адрес')
+    throw new ApiError('api.badRecord')
   }
   const confidence = typeof v.confidence === 'number' ? v.confidence : 0
   const id = typeof v.id === 'string' || typeof v.id === 'number' ? v.id : null
@@ -127,7 +131,7 @@ function toRecord(v: unknown): AddressRecord {
 
 export async function parseOne(rawAddress: string, signal?: AbortSignal): Promise<ParseResponse> {
   const data = parseJson(await post('/api/v1/parse', JSON.stringify({ raw_address: rawAddress }), signal))
-  if (!isObject(data)) throw new ApiError('Ответ сервера не похож на разобранный адрес')
+  if (!isObject(data)) throw new ApiError('api.badRecord')
   const result = toRecord(data.result)
   const spans = Array.isArray(data.spans) ? (data.spans as Span[]) : []
   const sources = isObject(data.sources) ? (data.sources as Partial<Record<Field, Source>>) : {}
@@ -249,7 +253,7 @@ function echoOf(v: unknown): Echo {
 export async function parseBatch(body: string, signal?: AbortSignal): Promise<BatchResponse> {
   const text = await post('/api/v1/parse/batch', body, signal)
   const data = parseJson(text)
-  if (!Array.isArray(data)) throw new ApiError('Сервер вернул не массив записей')
+  if (!Array.isArray(data)) throw new ApiError('api.notArray')
   const scanned = scanEchoes(text)
   const echoes = scanned && scanned.length === data.length ? scanned : data.map(echoOf)
   return { records: data.map(toBatchRecord), echoes }

@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
+import { useI18n } from '../i18n/useI18n'
 import { applyTheme, darkQuery, saveTheme, storedTheme, systemTheme, type Theme } from '../theme'
 
 /** Light/dark switch in the header; until the viewer picks one, the system setting decides. */
 export function ThemeToggle() {
+  const { t } = useI18n()
   const [theme, setTheme] = useState<Theme>(() => storedTheme() ?? systemTheme())
 
   useEffect(() => {
@@ -16,7 +18,7 @@ export function ThemeToggle() {
   }, [])
 
   const next: Theme = theme === 'dark' ? 'light' : 'dark'
-  const label = next === 'dark' ? 'Включить тёмную тему' : 'Включить светлую тему'
+  const label = t(next === 'dark' ? 'theme.toDark' : 'theme.toLight')
 
   return (
     <button

@@ -10,7 +10,6 @@ import {
 } from 'react'
 import {
   FIELDS,
-  errorMessage,
   isAbort,
   parseOne,
   type AddressRecord,
@@ -18,11 +17,12 @@ import {
   type ParseResponse,
   type Status,
 } from '../api'
-import { FIELD_GROUP, FIELD_LABELS, SOURCE_META } from '../fields'
+import { FIELD_GROUP, FIELD_LABELS, MANUAL_META, SOURCE_META } from '../fields'
+import { errorText } from '../i18n/errors'
+import { useI18n } from '../i18n/useI18n'
 import {
   REVIEW_META,
   STREET_TYPES,
-  formatCount,
   normalize,
   sameValues,
   valuesOf,
@@ -76,7 +76,7 @@ export function RecordEditor(props: Props) {
 
 type Parsed =
   | { state: 'loading' }
-  | { state: 'error'; message: string }
+  | { state: 'error'; error: unknown }
   | { state: 'done'; data: ParseResponse }
 
 type Form = Record<Field, string>
@@ -88,8 +88,6 @@ function toForm(v: Values): Form {
 function fromForm(form: Form): Values {
   return Object.fromEntries(FIELDS.map((f) => [f, normalize(form[f])])) as Values
 }
-
-const MANUAL = { label: 'вручную', title: 'Значение изменено вручную' }
 
 function EditorBody({
   index,
@@ -104,6 +102,7 @@ function EditorBody({
   onClose,
   titleId,
 }: Props & { titleId: string }) {
+  const { t, num } = useI18n()
   const original = useMemo(() => valuesOf(record), [record])
   const [form, setForm] = useState<Form>(() => toForm(review?.values ?? original))
   const [parsed, setParsed] = useState<Parsed>({ state: 'loading' })
@@ -120,7 +119,7 @@ function EditorBody({
     parseOne(record.raw_address, ctrl.signal)
       .then((data) => setParsed({ state: 'done', data }))
       .catch((err: unknown) => {
-        if (!isAbort(err)) setParsed({ state: 'error', message: errorMessage(err) })
+        if (!isAbort(err)) setParsed({ state: 'error', error: err })
       })
     return () => ctrl.abort()
   }, [record.raw_address])
@@ -158,12 +157,10 @@ function EditorBody({
     <div className="drawer-inner">
       <header className="drawer-head">
         <div className="drawer-title">
-          <p className="drawer-kicker">
-            Запись {formatCount(index + 1)} из {formatCount(total)}
-          </p>
-          <h2 id={titleId}>{record.id === null ? 'Запись без id' : `ID ${record.id}`}</h2>
+          <p className="drawer-kicker">{t('editor.position', { n: num(index + 1), total: num(total) })}</p>
+          <h2 id={titleId}>{record.id === null ? t('editor.noId') : `ID ${record.id}`}</h2>
         </div>
-        <button type="button" className="icon-button" onClick={onClose} aria-label="Закрыть">
+        <button type="button" className="icon-button" onClick={onClose} aria-label={t('common.close')}>
           <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
             <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
           </svg>
@@ -175,50 +172,50 @@ function EditorBody({
           <div className="drawer-badges">
             <ConfidenceBadge status={status} confidence={record.confidence} />
             {review && (
-              <span className={`badge rev-${review.kind}`} title={REVIEW_META[review.kind].title}>
-                {REVIEW_META[review.kind].label}
+              <span className={`badge rev-${review.kind}`} title={t(REVIEW_META[review.kind].title)}>
+                {t(REVIEW_META[review.kind].label)}
               </span>
             )}
-            {dirty && <span className="drawer-dirty">Есть несохранённые изменения</span>}
+            {dirty && <span className="drawer-dirty">{t('editor.dirty')}</span>}
           </div>
 
-          <h3 className="drawer-section">Исходная строка</h3>
+          <h3 className="drawer-section">{t('editor.raw')}</h3>
           {record.raw_address === '' ? (
-            <p className="highlight empty">В записи нет строки адреса</p>
+            <p className="highlight empty">{t('editor.noRaw')}</p>
           ) : (
             <Highlight raw={record.raw_address} spans={data?.spans ?? []} />
           )}
           <HighlightLegend />
 
-          {parsed.state === 'loading' && <p className="hint">Загружаем подсветку и источники полей…</p>}
+          {parsed.state === 'loading' && <p className="hint">{t('editor.loading')}</p>}
           {parsed.state === 'error' && (
             <p className="error" role="alert">
-              Подсветка недоступна: {parsed.message}. Поля можно править и без неё.
+              {t('editor.parseError', { detail: errorText(parsed.error, t) })}
             </p>
           )}
           {data?.suggestion && (
             <p className="suggestion suggestion-static">
-              <span className="suggestion-label">Подсказка:</span> {data.suggestion}
+              <span className="suggestion-label">{t('common.hint')}</span> {data.suggestion}
             </p>
           )}
 
-          <h3 className="drawer-section">Поля</h3>
+          <h3 className="drawer-section">{t('editor.fields')}</h3>
           <div className="edit-fields">
             {FIELDS.map((f, k) => {
               const id = `${idBase}-${f}`
               const changed = values[f] !== original[f]
               const source = data ? (data.sources[f] ?? (original[f] === null ? 'absent' : 'string')) : null
-              const meta = changed ? MANUAL : source ? (SOURCE_META[source] ?? SOURCE_META.absent) : null
+              const meta = changed ? MANUAL_META : source ? (SOURCE_META[source] ?? SOURCE_META.absent) : null
               const cls = changed ? 'manual' : `src-${source}`
               return (
                 <div className={`edit-row${changed ? ' changed' : ''}`} key={f}>
                   <label htmlFor={id}>
                     <span className={`swatch hl-${FIELD_GROUP[f]}`} aria-hidden="true" />
-                    {FIELD_LABELS[f]}
+                    {t(FIELD_LABELS[f])}
                   </label>
                   {f === 'street_type' ? (
                     <select id={id} className="input" value={form[f]} onChange={(e) => set(f, e.target.value)}>
-                      <option value="">(пусто)</option>
+                      <option value="">{t('common.emptyOption')}</option>
                       {streetOptions.map((t) => (
                         <option key={t} value={t}>
                           {t}
@@ -234,15 +231,15 @@ function EditorBody({
                       type="text"
                       value={form[f]}
                       onChange={(e) => set(f, e.target.value)}
-                      placeholder="пусто"
+                      placeholder={t('common.empty')}
                       autoComplete="off"
                       spellCheck={false}
                     />
                   )}
                   <span className="edit-source">
                     {meta && (
-                      <span className={`badge ${cls}`} title={meta.title}>
-                        {meta.label}
+                      <span className={`badge ${cls}`} title={t(meta.title)}>
+                        {t(meta.label)}
                       </span>
                     )}
                   </span>
@@ -254,22 +251,22 @@ function EditorBody({
 
         <footer className="drawer-foot">
           <button type="submit" className="button">
-            Сохранить и следующая <kbd>Enter</kbd>
+            {t('editor.saveNext')} <kbd>Enter</kbd>
           </button>
           <button type="button" className="button button-secondary" onClick={() => onSave(values)}>
-            Сохранить
+            {t('editor.save')}
           </button>
           <button type="button" className="button button-secondary" onClick={accept}>
-            Принять как есть
+            {t('editor.accept')}
           </button>
           <button
             type="button"
             className="button button-ghost"
             onClick={reset}
             disabled={!review && !dirty}
-            title="Убрать правку и вернуть разбор сервера"
+            title={t('editor.reset.title')}
           >
-            Сбросить
+            {t('editor.reset')}
           </button>
         </footer>
       </form>

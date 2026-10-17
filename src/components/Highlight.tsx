@@ -1,5 +1,6 @@
 import type { Field, Span } from '../api'
 import { FIELD_GROUP, FIELD_LABELS, GROUPS } from '../fields'
+import { useI18n } from '../i18n/useI18n'
 
 type Segment = { text: string; field: Field | null }
 
@@ -29,11 +30,12 @@ function toSegments(raw: string, spans: Span[]): Segment[] {
 }
 
 export function Highlight({ raw, spans }: { raw: string; spans: Span[] }) {
+  const { t } = useI18n()
   return (
     <p className="highlight">
       {toSegments(raw, spans).map((seg, i) =>
         seg.field ? (
-          <mark key={i} className={`hl hl-${FIELD_GROUP[seg.field]}`} title={FIELD_LABELS[seg.field]}>
+          <mark key={i} className={`hl hl-${FIELD_GROUP[seg.field]}`} title={t(FIELD_LABELS[seg.field])}>
             {seg.text}
           </mark>
         ) : (
@@ -45,12 +47,13 @@ export function Highlight({ raw, spans }: { raw: string; spans: Span[] }) {
 }
 
 export function HighlightLegend() {
+  const { t } = useI18n()
   return (
-    <ul className="legend" aria-label="Обозначения">
+    <ul className="legend" aria-label={t('legend.label')}>
       {GROUPS.map((g) => (
         <li key={g.id}>
           <span className={`swatch hl-${g.id}`} aria-hidden="true" />
-          {g.label}
+          {t(g.label)}
         </li>
       ))}
     </ul>

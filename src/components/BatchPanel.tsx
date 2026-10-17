@@ -1,13 +1,15 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type DragEvent, type KeyboardEvent } from 'react'
 import { errorMessage, isAbort, parseBatch, statusOf, type AddressRecord, type Echo, type Status } from '../api'
+import { FIELD_LABELS } from '../fields'
+import { KeyedError, errorText } from '../i18n/errors'
+import type { TranslationKey } from '../i18n/translations'
+import { useI18n } from '../i18n/useI18n'
 import {
   REVIEW_META,
   buildExport,
   draftKey,
   dropDraft,
-  formatCount,
   loadDraft,
-  plural,
   saveDraft,
   sameValues,
   valuesOf,
@@ -29,49 +31,45 @@ type Batch = {
 type State =
   | { state: 'idle' }
   | { state: 'loading'; fileName: string; count: number }
-  | { state: 'error'; message: string }
+  | { state: 'error'; error: unknown }
   | { state: 'done'; batch: Batch }
 
 /** Filter chips: uncertain statuses and records already checked by hand. No chip selected means all. */
 type Category = 'review' | 'unparsed' | 'done'
 
-const CHIPS: ReadonlyArray<{ id: Category; label: string; title: string }> = [
-  { id: 'review', label: 'Проверить', title: 'Уверенность от 0,5 до 0,8, ещё не проверены' },
-  { id: 'unparsed', label: 'Не разобрано', title: 'Уверенность ниже 0,5, ещё не проверены' },
-  { id: 'done', label: 'Исправлено', title: 'Исправлены или приняты вручную' },
+const CHIPS: ReadonlyArray<{ id: Category; label: TranslationKey; title: TranslationKey }> = [
+  { id: 'review', label: 'filter.review', title: 'filter.review.title' },
+  { id: 'unparsed', label: 'filter.unparsed', title: 'filter.unparsed.title' },
+  { id: 'done', label: 'filter.done', title: 'filter.done.title' },
 ]
 
 const PAGE = 200
 const UNCERTAIN: ReadonlySet<Category> = new Set(['review', 'unparsed'])
 const ALL: ReadonlySet<Category> = new Set()
 
-class InputError extends Error {}
-
 async function readBatchFile(file: File): Promise<{ text: string; count: number }> {
   if (!/\.json$/i.test(file.name) && !file.type.includes('json')) {
-    throw new InputError('Нужен файл в формате .json')
+    throw new KeyedError('file.notJson')
   }
   let text: string
   try {
     text = await file.text()
   } catch {
-    throw new InputError('Не удалось прочитать файл')
+    throw new KeyedError('file.unreadable')
   }
   let data: unknown
   try {
     data = JSON.parse(text.replace(/^﻿/, ''))
   } catch (err) {
-    throw new InputError(`Файл не является корректным JSON: ${errorMessage(err)}`)
+    throw new KeyedError('file.badJson', { detail: errorMessage(err) })
   }
   // the API also accepts an object that wraps the array
   if (typeof data === 'object' && data !== null && !Array.isArray(data)) {
     const o = data as Record<string, unknown>
     data = ['items', 'records', 'data', 'addresses'].map((k) => o[k]).find(Array.isArray) ?? data
   }
-  if (!Array.isArray(data)) {
-    throw new InputError('Ожидается JSON-массив записей вида [{"id": "…", "raw_address": "…"}]')
-  }
-  if (data.length === 0) throw new InputError('Массив пуст: в файле нет записей')
+  if (!Array.isArray(data)) throw new KeyedError('file.notArray')
+  if (data.length === 0) throw new KeyedError('file.empty')
   return { text, count: data.length }
 }
 
@@ -94,12 +92,8 @@ function baseName(fileName: string): string {
   return fileName.replace(/\.json$/i, '') || 'result'
 }
 
-function formatTime(ms: number): string {
-  if (!ms) return ''
-  return new Date(ms).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
-}
-
 export function BatchPanel() {
+  const { t, tp, num, time } = useI18n()
   const [st, setSt] = useState<State>({ state: 'idle' })
   const [dragging, setDragging] = useState(false)
   const [reviews, setReviews] = useState<ReadonlyMap<number, Review>>(new Map())
@@ -108,7 +102,7 @@ export function BatchPanel() {
   const [open, setOpen] = useState<number | null>(null)
   const [restored, setRestored] = useState<{ count: number; saved: number } | null>(null)
   const [stored, setStored] = useState(true)
-  const [notice, setNotice] = useState<string | null>(null)
+  const [notice, setNotice] = useState<TranslationKey | null>(null)
   const ctrlRef = useRef<AbortController | null>(null)
   const wrapRef = useRef<HTMLDivElement>(null)
 
@@ -143,7 +137,7 @@ export function BatchPanel() {
       setSt({ state: 'done', batch: { fileName: file.name, key, records: res.records, echoes: res.echoes, statuses, ms } })
     } catch (err) {
       if (isAbort(err) || ctrl.signal.aborted) return
-      setSt({ state: 'error', message: errorMessage(err) })
+      setSt({ state: 'error', error: err })
     }
   }
 
@@ -248,7 +242,7 @@ export function BatchPanel() {
     commit(next)
     const j = nextUncertain(i, next)
     if (j === null) {
-      setNotice('В текущем фильтре не осталось непроверенных записей.')
+      setNotice('batch.noneLeft')
       closeEditor(i)
     } else {
       setOpen(j)
@@ -304,25 +298,25 @@ export function BatchPanel() {
   return (
     <section className="card">
       <div className="card-head">
-        <h2>Пакетная обработка</h2>
+        <h2>{t('batch.title')}</h2>
         <div className="card-actions">
           <button
             type="button"
             className="button button-secondary"
             disabled={!batch || reviews.size === 0}
             onClick={() => download(true)}
-            title="Только исправленные и проверенные вручную записи, в том же формате"
+            title={t('batch.onlyFixes.title')}
           >
-            Только исправления
+            {t('batch.onlyFixes')}
           </button>
           <button
             type="button"
             className="button button-secondary"
             disabled={!batch}
             onClick={() => download(false)}
-            title="Все записи с правками: массив из 14 полей в порядке ТЗ"
+            title={t('batch.download.title')}
           >
-            Скачать JSON
+            {t('batch.download')}
           </button>
         </div>
       </div>
@@ -342,17 +336,23 @@ export function BatchPanel() {
         />
         <span className="dropzone-title">
           {st.state === 'loading'
-            ? `Обрабатываем ${formatCount(st.count)} записей из ${st.fileName}…`
+            ? t('batch.loading', { n: num(st.count), records: tp('batch.records', st.count), file: st.fileName })
             : batch
-              ? `${batch.fileName}: ${formatCount(batch.records.length)} записей. Перетащите другой файл или нажмите, чтобы выбрать`
-              : 'Перетащите файл .json сюда или нажмите, чтобы выбрать'}
+              ? t('batch.loaded', {
+                  file: batch.fileName,
+                  n: num(batch.records.length),
+                  records: tp('batch.records', batch.records.length),
+                })
+              : t('batch.drop')}
         </span>
-        <span className="dropzone-hint">Формат: [{'{'}"id": "…", "raw_address": "…"{'}'}, …]</span>
+        <span className="dropzone-hint">
+          {t('batch.format')}: [{'{'}"id": "…", "raw_address": "…"{'}'}, …]
+        </span>
       </label>
 
       {st.state === 'error' && (
         <p className="error" role="alert">
-          {st.message}
+          {errorText(st.error, t)}
         </p>
       )}
 
@@ -360,40 +360,42 @@ export function BatchPanel() {
         <>
           <div className="summary">
             <div className="stat stat-static">
-              <span className="stat-value">{formatCount(counts.all)}</span>
-              <span className="stat-label">записей</span>
+              <span className="stat-value">{num(counts.all)}</span>
+              <span className="stat-label">{tp('batch.records', counts.all)}</span>
             </div>
             <div className="stat stat-static stat-confident">
-              <span className="stat-value">{formatCount(counts.all - counts.uncertainModel)}</span>
-              <span className="stat-label">уверенно</span>
+              <span className="stat-value">{num(counts.all - counts.uncertainModel)}</span>
+              <span className="stat-label">{t('stat.confident')}</span>
             </div>
             <div className="stat stat-static stat-review">
-              <span className="stat-value">{formatCount(counts.uncertainModel)}</span>
-              <span className="stat-label">требуют проверки</span>
+              <span className="stat-value">{num(counts.uncertainModel)}</span>
+              <span className="stat-label">{t('stat.review')}</span>
             </div>
             <div className="stat stat-static stat-done">
-              <span className="stat-value">{formatCount(counts.done)}</span>
-              <span className="stat-label">проверено вручную</span>
+              <span className="stat-value">{num(counts.done)}</span>
+              <span className="stat-label">{t('stat.done')}</span>
             </div>
             <div className="stat stat-static">
-              <span className="stat-value">{formatCount(batch.ms)}&nbsp;мс</span>
-              <span className="stat-label">время запроса</span>
+              <span className="stat-value">
+                {num(batch.ms)}&nbsp;{t('common.ms')}
+              </span>
+              <span className="stat-label">{t('stat.time')}</span>
             </div>
           </div>
 
           {restored && (
             <div className="notice" role="status">
               <span>
-                {restored.count % 10 === 1 && restored.count % 100 !== 11 ? 'Восстановлена' : 'Восстановлено'}{' '}
-                {formatCount(restored.count)} {plural(restored.count, ['правка', 'правки', 'правок'])}
-                {restored.saved ? ` из черновика от ${formatTime(restored.saved)}` : ' из черновика'}.
+                {restored.saved
+                  ? tp('draft.restoredAt', restored.count, { time: time(restored.saved) })
+                  : tp('draft.restored', restored.count)}
               </span>
               <span className="notice-actions">
                 <button type="button" className="link-button" onClick={discardDraft}>
-                  Удалить черновик
+                  {t('draft.discard')}
                 </button>
                 <button type="button" className="link-button" onClick={() => setRestored(null)}>
-                  Скрыть
+                  {t('common.hide')}
                 </button>
               </span>
             </div>
@@ -401,29 +403,29 @@ export function BatchPanel() {
 
           {!stored && reviews.size > 0 && (
             <p className="notice notice-warn" role="status">
-              Черновик не сохраняется: хранилище браузера недоступно. Скачайте результат до перезагрузки страницы.
+              {t('draft.notStored')}
             </p>
           )}
 
           {notice && (
             <div className="notice" role="status">
-              <span>{notice}</span>
+              <span>{t(notice)}</span>
               <span className="notice-actions">
                 <button type="button" className="link-button" onClick={() => setNotice(null)}>
-                  Скрыть
+                  {t('common.hide')}
                 </button>
               </span>
             </div>
           )}
 
-          <div className="filter" role="group" aria-label="Фильтр по статусу">
+          <div className="filter" role="group" aria-label={t('filter.label')}>
             <button
               type="button"
               className={`chip chip-filter${filter.size === 0 ? ' active' : ''}`}
               aria-pressed={filter.size === 0}
               onClick={showAll}
             >
-              Все <span className="chip-count">{formatCount(counts.all)}</span>
+              {t('filter.all')} <span className="chip-count">{num(counts.all)}</span>
             </button>
             {CHIPS.map((c) => (
               <button
@@ -432,15 +434,15 @@ export function BatchPanel() {
                 className={`chip chip-filter chip-${c.id}${filter.has(c.id) ? ' active' : ''}`}
                 aria-pressed={filter.has(c.id)}
                 onClick={() => toggle(c.id)}
-                title={c.title}
+                title={t(c.title)}
               >
-                {c.label} <span className="chip-count">{formatCount(counts[c.id])}</span>
+                {t(c.label)} <span className="chip-count">{num(counts[c.id])}</span>
               </button>
             ))}
           </div>
 
           <p className="hint">
-            Нажмите на строку или Enter, чтобы проверить разбор и поправить поля. Правки сохраняются в браузере.
+            {t('batch.tableHint')}
           </p>
 
           <div className="table-wrap" ref={wrapRef} tabIndex={-1}>
@@ -448,12 +450,12 @@ export function BatchPanel() {
               <thead>
                 <tr>
                   <th>ID</th>
-                  <th>Исходная строка</th>
-                  <th>Город</th>
-                  <th>Улица</th>
-                  <th>Дом</th>
-                  <th>Кв.</th>
-                  <th>Уверенность</th>
+                  <th>{t('col.raw')}</th>
+                  <th>{t(FIELD_LABELS.city)}</th>
+                  <th>{t(FIELD_LABELS.street_name)}</th>
+                  <th>{t(FIELD_LABELS.house)}</th>
+                  <th>{t('col.apartment')}</th>
+                  <th>{t('col.confidence')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -486,8 +488,8 @@ export function BatchPanel() {
                       <td className="cell-conf">
                         <ConfidenceBadge status={status} confidence={r.confidence} compact />
                         {review && (
-                          <span className={`badge rev-${review.kind}`} title={REVIEW_META[review.kind].title}>
-                            {REVIEW_META[review.kind].label}
+                          <span className={`badge rev-${review.kind}`} title={t(REVIEW_META[review.kind].title)}>
+                            {t(REVIEW_META[review.kind].label)}
                           </span>
                         )}
                       </td>
@@ -497,7 +499,7 @@ export function BatchPanel() {
                 {visible.length === 0 && (
                   <tr>
                     <td colSpan={7} className="cell-empty">
-                      Нет записей с таким статусом
+                      {t('batch.noRows')}
                     </td>
                   </tr>
                 )}
@@ -505,9 +507,9 @@ export function BatchPanel() {
             </table>
           </div>
 
-          <nav className="pager" aria-label="Страницы таблицы">
+          <nav className="pager" aria-label={t('pager.label')}>
             <span className="pager-range">
-              {formatCount(from)}–{formatCount(to)} из {formatCount(visible.length)}
+              {t('pager.range', { from: num(from), to: num(to), total: num(visible.length) })}
             </span>
             {pageCount > 1 && (
               <span className="pager-buttons">
@@ -516,7 +518,7 @@ export function BatchPanel() {
                   className="button button-secondary"
                   onClick={() => goTo(0)}
                   disabled={cur === 0}
-                  aria-label="Первая страница"
+                  aria-label={t('pager.first')}
                 >
                   «
                 </button>
@@ -526,10 +528,10 @@ export function BatchPanel() {
                   onClick={() => goTo(cur - 1)}
                   disabled={cur === 0}
                 >
-                  Назад
+                  {t('pager.prev')}
                 </button>
                 <span className="pager-page">
-                  {formatCount(cur + 1)} / {formatCount(pageCount)}
+                  {num(cur + 1)} / {num(pageCount)}
                 </span>
                 <button
                   type="button"
@@ -537,14 +539,14 @@ export function BatchPanel() {
                   onClick={() => goTo(cur + 1)}
                   disabled={cur >= pageCount - 1}
                 >
-                  Вперёд
+                  {t('pager.next')}
                 </button>
                 <button
                   type="button"
                   className="button button-secondary"
                   onClick={() => goTo(pageCount - 1)}
                   disabled={cur >= pageCount - 1}
-                  aria-label="Последняя страница"
+                  aria-label={t('pager.last')}
                 >
                   »
                 </button>

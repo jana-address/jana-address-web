@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useI18n } from '../i18n/useI18n'
 
 type Copy = 'idle' | 'copied' | 'selected'
 
@@ -26,6 +27,7 @@ async function copyText(text: string, pre: HTMLElement | null): Promise<Copy> {
 type Props = { code: string; label?: string }
 
 export function CodeBlock({ code, label }: Props) {
+  const { t } = useI18n()
   const [copy, setCopy] = useState<Copy>('idle')
   const preRef = useRef<HTMLPreElement>(null)
 
@@ -44,7 +46,7 @@ export function CodeBlock({ code, label }: Props) {
       <div className="code-head">
         <span className="code-label">{label}</span>
         <button type="button" className="code-copy" onClick={onCopy} aria-live="polite">
-          {copy === 'copied' ? 'Скопировано' : copy === 'selected' ? 'Выделено: Ctrl+C' : 'Копировать'}
+          {t(copy === 'copied' ? 'code.copied' : copy === 'selected' ? 'code.selected' : 'code.copy')}
         </button>
       </div>
       <pre ref={preRef} tabIndex={0}>

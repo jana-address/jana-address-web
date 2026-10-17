@@ -1,4 +1,5 @@
 import { FIELDS, type AddressRecord, type Echo, type Field } from './api'
+import type { Meta } from './fields'
 
 export type Values = Record<Field, string | null>
 
@@ -6,9 +7,9 @@ export type Values = Record<Field, string | null>
 export type Review = { kind: 'edited' | 'accepted'; values: Values }
 export type Reviews = ReadonlyMap<number, Review>
 
-export const REVIEW_META: Record<Review['kind'], { label: string; title: string }> = {
-  edited: { label: 'исправлено', title: 'Поля исправлены вручную' },
-  accepted: { label: 'проверено', title: 'Разбор проверен и принят без изменений' },
+export const REVIEW_META: Record<Review['kind'], Meta> = {
+  edited: { label: 'review.edited', title: 'review.edited.title' },
+  accepted: { label: 'review.accepted', title: 'review.accepted.title' },
 }
 
 export const STREET_TYPES = [
@@ -132,19 +133,4 @@ export function buildExport(
     out.push(s)
   }
   return out.length === 0 ? '[]\n' : `[\n${out.join(',\n')}\n]\n`
-}
-
-/* ---------- Small text helpers ---------- */
-
-/** Russian plural: plural(5, ['правка', 'правки', 'правок']) → 'правок'. */
-export function plural(n: number, forms: readonly [string, string, string]): string {
-  const m10 = n % 10
-  const m100 = n % 100
-  if (m10 === 1 && m100 !== 11) return forms[0]
-  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return forms[1]
-  return forms[2]
-}
-
-export function formatCount(n: number): string {
-  return n.toLocaleString('ru-RU')
 }
