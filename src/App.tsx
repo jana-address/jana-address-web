@@ -3,6 +3,7 @@ import { isAbort, parseOne, type ParseResponse } from './api'
 import { BatchPanel } from './components/BatchPanel'
 import { ConfidenceBadge } from './components/ConfidenceBadge'
 import { FieldsTable } from './components/FieldsTable'
+import { Logo } from './components/Logo'
 import { ThemeToggle } from './components/ThemeToggle'
 import { Highlight, HighlightLegend } from './components/Highlight'
 import LanguageSwitcher from './i18n/LanguageSwitcher'
@@ -62,13 +63,19 @@ export default function App() {
 
   return (
     <div className="page">
+      {/* as on janapost.kz: a gray strip with the language and settings, under it the navigation card */}
+      <div className="utility">
+        <LanguageSwitcher />
+        <ThemeToggle />
+      </div>
       <header className="topbar">
-        <a className="logo" href="/" aria-label={t('nav.logo')}>
-          <span className="logo-main">JAŃA</span>
-          <span className="logo-sub">POST</span>
-        </a>
-        <span className="divider" />
-        <span className="product">Address</span>
+        <div className="brand">
+          <a className="logo" href="/" aria-label={t('nav.logo')}>
+            <Logo />
+          </a>
+          <span className="divider" />
+          <span className="product">Address</span>
+        </div>
         <nav className="topnav" aria-label={t('nav.sections')}>
           <a href={ROUTES.parse} aria-current={page === 'parse' ? 'page' : undefined}>
             {t('nav.parse')}
@@ -77,10 +84,6 @@ export default function App() {
             {t('nav.docs')}
           </a>
         </nav>
-        <div className="topbar-actions">
-          <LanguageSwitcher />
-          <ThemeToggle />
-        </div>
       </header>
 
       {/* the parse page stays mounted on /docs: an uploaded batch and its edits survive a visit to the docs */}

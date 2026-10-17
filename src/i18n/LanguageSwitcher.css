@@ -1,4 +1,4 @@
-/* Language menu in the header: the same size and tokens as the theme switch, so both themes just work. */
+/* Language menu: the button and list of janapost.kz on design tokens, so both themes just work. */
 .lang {
   position: relative;
   flex: none;
@@ -7,22 +7,34 @@
 .lang-button {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   height: 36px;
-  padding: 0 12px;
-  border: 1px solid var(--jp-stroke);
-  border-radius: 999px;
+  padding: 8px 12px;
+  border: 1px solid transparent;
+  border-radius: var(--jp-radius-md);
   background: var(--jp-surface);
   color: var(--jp-text);
   font: inherit;
-  font-size: 13px;
-  font-weight: 600;
-  line-height: 1;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
   cursor: pointer;
 }
 
 .lang-button:hover {
   background: var(--jp-row-hover);
+}
+
+.lang-button[aria-expanded='true'] {
+  border-color: var(--jp-primary-line);
+}
+
+.lang-chevron {
+  transition: transform 0.15s;
+}
+
+.lang-button[aria-expanded='true'] .lang-chevron {
+  transform: rotate(180deg);
 }
 
 .lang-button:focus-visible,
@@ -34,11 +46,12 @@
 .lang-menu {
   position: absolute;
   top: calc(100% + 8px);
-  right: 0;
-  z-index: 20;
-  min-width: 160px;
+  left: 0;
+  z-index: 30;
+  min-width: 100%;
   margin: 0;
-  padding: 6px;
+  padding: 0;
+  overflow: hidden;
   list-style: none;
   background: var(--jp-surface);
   border: 1px solid var(--jp-stroke);
@@ -49,13 +62,15 @@
 .lang-item {
   display: block;
   width: 100%;
-  padding: 9px 12px;
+  height: 40px;
+  padding: 10px 12px;
   border: 0;
-  border-radius: 8px;
   background: transparent;
   color: var(--jp-text-secondary);
   font: inherit;
   font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
   text-align: left;
   white-space: nowrap;
   cursor: pointer;
@@ -69,5 +84,4 @@
 .lang-item[aria-checked='true'] {
   background: var(--jp-primary-soft);
   color: var(--jp-primary-text);
-  font-weight: 600;
 }

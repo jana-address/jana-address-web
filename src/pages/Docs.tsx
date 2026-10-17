@@ -232,7 +232,8 @@ export function Docs() {
         const top = entries.filter((e) => e.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0]
         if (top) setActive(top.target.id)
       },
-      { rootMargin: '0px 0px -65% 0px' },
+      // the top 104 px are under the sticky navigation card
+      { rootMargin: '-104px 0px -60% 0px' },
     )
     for (const s of SECTIONS) {
       const el = document.getElementById(s.id)

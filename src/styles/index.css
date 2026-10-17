@@ -25,12 +25,16 @@
   --jp-hl-detail: #f2ebff;
   --jp-hl-landmark: #ebebeb;
   --jp-radius-md: 12px;
+  --jp-radius-lg: 16px;
   --jp-radius-xl: 20px;
+  /* content width of janapost.kz: 1312 px with 64 px at the sides on a 1440 screen */
+  --jp-content: 1312px;
   --jp-font: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --jp-mono: ui-monospace, 'SFMono-Regular', Menlo, Consolas, 'Liberation Mono', monospace;
   --jp-text-tertiary: #949497;
   --jp-stroke-strong: #c9c9c9;
-  --jp-primary-soft: #f0f8f0;
+  --jp-primary-soft: #f1fff1;
+  --jp-primary-line: #a9dca9;
   --jp-primary-text: #007a00;
   --jp-row-hover: #f8faf8;
   --jp-swatch-ring: rgb(0 0 0 / 14%);
@@ -71,6 +75,7 @@
   --jp-hl-landmark: #3a3a3d;
   --jp-stroke-strong: #4a4a4e;
   --jp-primary-soft: #11291a;
+  --jp-primary-line: #2f6e2f;
   --jp-primary-text: #5fcf5c;
   --jp-row-hover: #212123;
   --jp-swatch-ring: rgb(255 255 255 / 20%);
@@ -110,6 +115,7 @@
     --jp-hl-landmark: #3a3a3d;
     --jp-stroke-strong: #4a4a4e;
     --jp-primary-soft: #11291a;
+    --jp-primary-line: #2f6e2f;
     --jp-primary-text: #5fcf5c;
     --jp-row-hover: #212123;
     --jp-swatch-ring: rgb(255 255 255 / 20%);
@@ -142,36 +148,50 @@ body {
   min-height: 100vh;
 }
 
-.topbar {
+/* gray strip above the navigation: language on the left, settings on the right */
+.utility {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 12px;
+  width: min(var(--jp-content), 100% - 64px);
+  height: 62px;
+  margin: 0 auto;
+}
+
+/* navigation card: logo on the left, links in the middle; it stays on screen while scrolling */
+.topbar {
+  position: sticky;
+  top: 16px;
+  z-index: 20;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 24px;
+  width: min(var(--jp-content), 100% - 64px);
   height: 70px;
-  max-width: 1136px;
-  margin: 16px max(32px, calc((100% - 1136px) / 2)) 0;
+  margin: 0 auto;
   padding: 0 24px;
   background: var(--jp-surface);
   border: 1px solid var(--jp-stroke);
   border-radius: var(--jp-radius-xl);
 }
 
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .logo {
   display: flex;
-  flex-direction: column;
-  line-height: 1;
   color: var(--jp-logo);
 }
 
-.logo-main {
-  font-size: 24px;
-  font-weight: 700;
-  letter-spacing: -0.6px;
-}
-
-.logo-sub {
-  font-size: 8px;
-  font-weight: 600;
-  letter-spacing: 0.6px;
+.logo-mark {
+  display: block;
+  width: 77px;
+  height: 40px;
 }
 
 .divider {
@@ -187,7 +207,7 @@ body {
 }
 
 .container {
-  max-width: 1200px;
+  max-width: calc(var(--jp-content) + 64px);
   margin: 0 auto;
   padding: 40px 32px 64px;
 }
@@ -210,7 +230,7 @@ h1 {
 .card {
   padding: 24px;
   background: var(--jp-surface);
-  border-radius: var(--jp-radius-md);
+  border-radius: var(--jp-radius-xl);
 }
 
 h2 {
@@ -277,14 +297,15 @@ h2 {
 }
 
 .button {
-  padding: 12px 20px;
+  padding: 14px 16px;
   border: 0;
   border-radius: var(--jp-radius-md);
   background: var(--jp-primary);
   color: #fff;
   font: inherit;
-  font-size: 15px;
-  font-weight: 500;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
   cursor: pointer;
 }
 
@@ -299,10 +320,18 @@ h2 {
 }
 
 @media (max-width: 600px) {
+  .utility {
+    width: auto;
+    height: 56px;
+    margin: 0 16px;
+  }
+
   .topbar {
+    position: static;
+    width: auto;
     margin: 0;
     border-radius: 0;
-    border-width: 0 0 1px;
+    border-width: 1px 0;
   }
 
   .container {
@@ -344,7 +373,7 @@ h3 {
   background: var(--jp-surface);
   color: var(--jp-text);
   border: 1px solid var(--jp-stroke);
-  padding: 10px 18px;
+  padding: 13px 16px;
 }
 
 .button-secondary:hover:not(:disabled) {
@@ -675,10 +704,23 @@ h3 {
   box-shadow: inset 0 0 0 1px var(--jp-primary);
 }
 
+/* counters in the shape of the janapost.kz cards: icon on top, then the number and its caption */
 .stat-static {
-  cursor: default;
-  background: var(--jp-bg);
+  gap: 4px;
+  padding: 20px;
   border-color: transparent;
+  border-radius: var(--jp-radius-xl);
+  background: var(--jp-bg);
+  cursor: default;
+}
+
+.stat-icon {
+  margin-bottom: 16px;
+  color: var(--jp-primary-text);
+}
+
+.stat-review .stat-icon {
+  color: var(--jp-warning-text);
 }
 
 .stat-static:hover {
@@ -693,16 +735,21 @@ h3 {
 }
 
 .stat-label {
-  font-size: 13px;
+  font-size: 14px;
+  line-height: 20px;
   color: var(--jp-text-secondary);
 }
 
-.stat-confident .stat-value {
-  color: var(--jp-success-text);
+/* one card filled with the brand green, as "5 стран" on janapost.kz */
+.stat-confident.stat-static,
+.stat-confident.stat-static:hover {
+  background: var(--jp-primary);
 }
 
-.stat-review .stat-value {
-  color: var(--jp-warning-text);
+.stat-confident .stat-value,
+.stat-confident .stat-label,
+.stat-confident .stat-icon {
+  color: #fff;
 }
 
 .stat-unparsed .stat-value {
@@ -837,14 +884,13 @@ a.logo {
 .topnav {
   display: flex;
   align-items: center;
-  gap: 24px;
-  margin-left: 24px;
+  gap: 32px;
 }
 
 .topnav a {
-  padding: 4px 0;
   color: var(--jp-text);
-  font-size: 15px;
+  font-size: 16px;
+  line-height: 24px;
   text-decoration: none;
 }
 
@@ -855,8 +901,8 @@ a.logo {
 .topnav a[aria-current='page'] {
   color: var(--jp-primary-text);
   text-decoration: underline;
-  text-decoration-thickness: 2px;
-  text-underline-offset: 8px;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 4px;
 }
 
 .topnav a:focus-visible,
@@ -873,6 +919,7 @@ a.logo:focus-visible,
 
 @media (max-width: 600px) {
   .topbar {
+    display: flex;
     flex-wrap: wrap;
     height: auto;
     padding: 12px 16px;
@@ -880,9 +927,8 @@ a.logo:focus-visible,
   }
 
   .topnav {
-    order: 3;
     width: 100%;
-    margin-left: 0;
+    gap: 24px;
   }
 
   .card {
@@ -911,9 +957,6 @@ a.logo:focus-visible,
   }
 }
 
-.stat-done .stat-value {
-  color: var(--jp-primary-text);
-}
 
 .filter {
   display: flex;
@@ -1338,8 +1381,8 @@ kbd {
 
 .toc {
   position: sticky;
-  top: 16px;
-  max-height: calc(100vh - 32px);
+  top: 102px;
+  max-height: calc(100vh - 118px);
   padding: 12px;
   overflow-y: auto;
   border-radius: var(--jp-radius-md);
@@ -1382,7 +1425,13 @@ kbd {
 }
 
 .doc-section {
-  scroll-margin-top: 16px;
+  scroll-margin-top: 104px;
+}
+
+@media (max-width: 600px) {
+  .doc-section {
+    scroll-margin-top: 16px;
+  }
 }
 
 .doc-section p,
@@ -1595,30 +1644,33 @@ kbd {
   }
 }
 
-/* language menu and theme switch, at the right end of the header */
-.topbar-actions {
-  display: flex;
+/* light/dark switch, in the place and style of the "Отделения" button of janapost.kz */
+.theme-toggle {
+  display: inline-flex;
   align-items: center;
   gap: 8px;
-  margin-left: auto;
-}
-
-/* light/dark switch */
-.theme-toggle {
-  display: inline-grid;
-  place-items: center;
   flex: none;
-  width: 36px;
   height: 36px;
-  padding: 0;
+  padding: 8px 12px;
   border: 1px solid var(--jp-stroke);
-  border-radius: 50%;
+  border-radius: var(--jp-radius-md);
   background: var(--jp-surface);
-  color: var(--jp-text);
+  color: var(--jp-text-secondary);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
   cursor: pointer;
 }
 .theme-toggle:hover {
   background: var(--jp-row-hover);
+  color: var(--jp-text);
+}
+
+@media (max-width: 360px) {
+  .theme-toggle-text {
+    display: none;
+  }
 }
 .theme-toggle:focus-visible {
   outline: 2px solid var(--jp-primary);

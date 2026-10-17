@@ -55,6 +55,7 @@ export function ThemeToggle() {
           />
         </svg>
       )}
+      <span className="theme-toggle-text">{t(next === 'dark' ? 'theme.dark' : 'theme.light')}</span>
     </button>
   )
 }

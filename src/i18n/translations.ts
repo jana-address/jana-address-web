@@ -20,6 +20,8 @@ const ru = {
   'title.docs': 'Документация · Jana Address',
   'theme.toDark': 'Включить тёмную тему',
   'theme.toLight': 'Включить светлую тему',
+  'theme.dark': 'Тёмная тема',
+  'theme.light': 'Светлая тема',
   'lang.label': 'Язык',
 
   'common.hide': 'Скрыть',
@@ -235,6 +237,8 @@ const kk: Dictionary = {
   'title.docs': 'Құжаттама · Jana Address',
   'theme.toDark': 'Қараңғы тақырыпты қосу',
   'theme.toLight': 'Жарық тақырыпты қосу',
+  'theme.dark': 'Қараңғы тақырып',
+  'theme.light': 'Жарық тақырып',
   'lang.label': 'Тіл',
 
   'common.hide': 'Жасыру',
@@ -445,6 +449,8 @@ const en: Dictionary = {
   'title.docs': 'Documentation · Jana Address',
   'theme.toDark': 'Switch to dark theme',
   'theme.toLight': 'Switch to light theme',
+  'theme.dark': 'Dark theme',
+  'theme.light': 'Light theme',
   'lang.label': 'Language',
 
   'common.hide': 'Hide',

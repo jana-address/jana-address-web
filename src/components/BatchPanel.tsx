@@ -360,22 +360,27 @@ export function BatchPanel() {
         <>
           <div className="summary">
             <div className="stat stat-static">
+              <StatIcon name="records" />
               <span className="stat-value">{num(counts.all)}</span>
               <span className="stat-label">{tp('batch.records', counts.all)}</span>
             </div>
             <div className="stat stat-static stat-confident">
+              <StatIcon name="confident" />
               <span className="stat-value">{num(counts.all - counts.uncertainModel)}</span>
               <span className="stat-label">{t('stat.confident')}</span>
             </div>
             <div className="stat stat-static stat-review">
+              <StatIcon name="review" />
               <span className="stat-value">{num(counts.uncertainModel)}</span>
               <span className="stat-label">{t('stat.review')}</span>
             </div>
             <div className="stat stat-static stat-done">
+              <StatIcon name="done" />
               <span className="stat-value">{num(counts.done)}</span>
               <span className="stat-label">{t('stat.done')}</span>
             </div>
             <div className="stat stat-static">
+              <StatIcon name="time" />
               <span className="stat-value">
                 {num(batch.ms)}&nbsp;{t('common.ms')}
               </span>
@@ -571,5 +576,22 @@ export function BatchPanel() {
         />
       )}
     </section>
+  )
+}
+
+// outline icons of the counters, drawn like the icons of the janapost.kz cards
+const STAT_ICONS = {
+  records: 'M7 3h7l5 5v13H7zM14 3v5h5M10 13h6M10 17h6',
+  confident: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM8 12.5l2.8 2.8 5.7-5.8',
+  review: 'M12 4 2.8 20h18.4zM12 10v4.5M12 17.5v.01',
+  done: 'M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4',
+  time: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 7v5l3 2',
+} as const
+
+function StatIcon({ name }: { name: keyof typeof STAT_ICONS }) {
+  return (
+    <svg className="stat-icon" viewBox="0 0 24 24" width="32" height="32" aria-hidden="true">
+      <path d={STAT_ICONS[name]} fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
   )
 }

@@ -3,7 +3,7 @@ import { DEFAULT_LANG, LANGUAGES } from './translations'
 import { useI18n } from './useI18n'
 import './LanguageSwitcher.css'
 
-/** Language menu in the header: Қазақша, Русский, English. The choice is kept in the browser. */
+/** Language menu at the left of the top strip, as on janapost.kz: Қазақша, Русский, English. The choice is kept in the browser. */
 export default function LanguageSwitcher() {
   const { lang, setLang, t } = useI18n()
   const [open, setOpen] = useState(false)
@@ -57,7 +57,10 @@ export default function LanguageSwitcher() {
           <path d="M3 12h18" />
           <path d="M12 3c2.5 2.7 3.8 5.7 3.8 9s-1.3 6.3-3.8 9c-2.5-2.7-3.8-5.7-3.8-9S9.5 5.7 12 3z" />
         </svg>
-        <span className="lang-current">{current.code.toUpperCase()}</span>
+        <span className="lang-current">{current.label}</span>
+        <svg className="lang-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+          <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
       </button>
 
       {open && (
