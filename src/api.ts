@@ -42,12 +42,6 @@ export type BatchResponse = {
   echoes: Echo[]
 }
 
-export type Health = {
-  status: 'ok' | 'degraded'
-  version: string
-  db: 'ok' | 'down'
-}
-
 export class ApiError extends Error {}
 
 const STATUSES: readonly Status[] = ['confident', 'review', 'unparsed']
@@ -259,10 +253,4 @@ export async function parseBatch(body: string, signal?: AbortSignal): Promise<Ba
   const scanned = scanEchoes(text)
   const echoes = scanned && scanned.length === data.length ? scanned : data.map(echoOf)
   return { records: data.map(toBatchRecord), echoes }
-}
-
-export async function fetchHealth(signal?: AbortSignal): Promise<Health> {
-  const res = await fetch('/api/v1/health', { signal, headers: { Accept: 'application/json' } })
-  if (!res.ok) throw new ApiError(`HTTP ${res.status}`)
-  return (await res.json()) as Health
 }

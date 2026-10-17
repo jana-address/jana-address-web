@@ -315,43 +315,6 @@ h2 {
   }
 }
 
-/* ---------- Header status ---------- */
-
-.health {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  margin-left: auto;
-  padding: 6px 12px;
-  border: 1px solid var(--jp-stroke);
-  border-radius: 999px;
-  background: var(--jp-surface);
-  color: var(--jp-text-secondary);
-  font: inherit;
-  font-size: 13px;
-  font-variant-numeric: tabular-nums;
-  cursor: pointer;
-}
-
-.health:hover {
-  border-color: var(--jp-stroke-strong);
-}
-
-.dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--jp-text-tertiary);
-}
-
-.dot-ok {
-  background: var(--jp-primary);
-}
-
-.dot-down {
-  background: var(--jp-danger-text);
-}
-
 /* ---------- Cards, common controls ---------- */
 
 .card + .card {
@@ -470,7 +433,6 @@ h3 {
 }
 
 .chip:focus-visible,
-.health:focus-visible,
 .stat:focus-visible {
   outline: 3px solid rgb(0 140 0 / 30%);
   outline-offset: 2px;
@@ -1768,9 +1730,10 @@ kbd {
   }
 }
 
-/* light/dark switch in the header */
+/* light/dark switch at the right end of the header */
 .theme-toggle {
   display: inline-grid;
+  margin-left: auto;
   place-items: center;
   flex: none;
   width: 36px;
