@@ -1731,9 +1731,16 @@ kbd {
 }
 
 /* light/dark switch at the right end of the header */
+/* language menu and theme switch, at the right end of the header */
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
 .theme-toggle {
   display: inline-grid;
-  margin-left: auto;
   place-items: center;
   flex: none;
   width: 36px;
