@@ -52,6 +52,7 @@ export const MANUAL_META: Meta = { label: 'source.manual', title: 'source.manual
 
 export const LEVEL_META: Record<Level, Meta> = {
   house: { label: 'level.house', title: 'level.house.title' },
+  neighbors: { label: 'level.neighbors', title: 'level.neighbors.title' },
   street: { label: 'level.street', title: 'level.street.title' },
   area: { label: 'level.area', title: 'level.area.title' },
   settlement: { label: 'level.settlement', title: 'level.settlement.title' },

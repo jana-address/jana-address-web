@@ -17,9 +17,9 @@ export const FIELDS = [
 
 export type Field = (typeof FIELDS)[number]
 export type Source = 'string' | 'directory' | 'absent'
-/** How a directory value was matched: the building, the street, the living area, the town, the written district. */
-export type Level = 'house' | 'street' | 'area' | 'settlement' | 'district'
-export const LEVELS: readonly Level[] = ['house', 'street', 'area', 'settlement', 'district']
+/** How a directory value was matched: the building, its neighbours, the street, the living area, the town, the written district. */
+export type Level = 'house' | 'neighbors' | 'street' | 'area' | 'settlement' | 'district'
+export const LEVELS: readonly Level[] = ['house', 'neighbors', 'street', 'area', 'settlement', 'district']
 export type Status = 'confident' | 'review' | 'unparsed'
 
 export type AddressRecord = {
