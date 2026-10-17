@@ -1,13 +1,14 @@
-import { FIELDS, type AddressRecord, type Field, type Source } from '../api'
-import { FIELD_GROUP, FIELD_LABELS, SOURCE_META } from '../fields'
+import { FIELDS, type AddressRecord, type Field, type Level, type Source } from '../api'
+import { FIELD_GROUP, FIELD_LABELS, LEVEL_META, SOURCE_META } from '../fields'
 import { useI18n } from '../i18n/useI18n'
 
 type Props = {
   record: AddressRecord
   sources: Partial<Record<Field, Source>>
+  levels?: Partial<Record<Field, Level>>
 }
 
-export function FieldsTable({ record, sources }: Props) {
+export function FieldsTable({ record, sources, levels = {} }: Props) {
   const { t } = useI18n()
   return (
     <dl className="fields">
@@ -15,6 +16,7 @@ export function FieldsTable({ record, sources }: Props) {
         const value = record[f]
         const source: Source = sources[f] ?? (value === null ? 'absent' : 'string')
         const meta = SOURCE_META[source] ?? SOURCE_META.absent
+        const level = source === 'directory' ? levels[f] : undefined
         return (
           <div className="field-row" key={f}>
             <dt>
@@ -26,6 +28,11 @@ export function FieldsTable({ record, sources }: Props) {
               <span className={`badge src-${source}`} title={t(meta.title)}>
                 {t(meta.label)}
               </span>
+              {level && (
+                <span className="level" title={t(LEVEL_META[level].title)}>
+                  {t(LEVEL_META[level].label)}
+                </span>
+              )}
             </dd>
           </div>
         )

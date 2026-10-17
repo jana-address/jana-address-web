@@ -200,7 +200,7 @@ function ParsePage({ hidden }: { hidden: boolean }) {
             </div>
             <Highlight raw={data.result.raw_address} spans={data.spans} />
             <HighlightLegend />
-            <FieldsTable record={data.result} sources={data.sources} />
+            <FieldsTable record={data.result} sources={data.sources} levels={data.levels} />
           </div>
         )}
       </section>

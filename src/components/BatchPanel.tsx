@@ -47,8 +47,10 @@ const PAGE = 200
 const UNCERTAIN: ReadonlySet<Category> = new Set(['review', 'unparsed'])
 const ALL: ReadonlySet<Category> = new Set()
 
+const NDJSON = /\.(jsonl|ndjson)$/i
+
 async function readBatchFile(file: File): Promise<{ text: string; count: number }> {
-  if (!/\.json$/i.test(file.name) && !file.type.includes('json')) {
+  if (!/\.json$/i.test(file.name) && !NDJSON.test(file.name) && !file.type.includes('json')) {
     throw new KeyedError('file.notJson')
   }
   let text: string
@@ -56,6 +58,17 @@ async function readBatchFile(file: File): Promise<{ text: string; count: number 
     text = await file.text()
   } catch {
     throw new KeyedError('file.unreadable')
+  }
+  if (NDJSON.test(file.name)) {
+    // one object per line; the API reads NDJSON as is, the page converts it to the array it scans
+    const lines = text.replace(/^\uFEFF/, '').split(/\r?\n/).filter((l) => l.trim() !== '')
+    try {
+      lines.forEach((l) => JSON.parse(l))
+    } catch (err) {
+      throw new KeyedError('file.badJson', { detail: errorMessage(err) })
+    }
+    if (lines.length === 0) throw new KeyedError('file.empty')
+    return { text: `[${lines.join(',\n')}]`, count: lines.length }
   }
   let data: unknown
   try {
@@ -88,8 +101,17 @@ function streetOf(r: Values): string {
   return [r.street_type, r.street_name].filter(Boolean).join(' ')
 }
 
+/** Fields the table shows only with "all fields" on; the editor always shows every field. */
+const EXTRA_BEFORE_STREET = ['district', 'living_area'] as const
+const EXTRA_AFTER_APARTMENT = ['entrance', 'floor', 'landmark'] as const
+
+function matches(id: string | number | null, raw: string, v: Values, q: string): boolean {
+  const hay = [id ?? '', raw, v.province, v.city, v.district, v.living_area, v.street_name, v.house, v.landmark]
+  return hay.some((s) => s !== null && String(s).toLowerCase().includes(q))
+}
+
 function baseName(fileName: string): string {
-  return fileName.replace(/\.json$/i, '') || 'result'
+  return fileName.replace(/\.(json|jsonl|ndjson)$/i, '') || 'result'
 }
 
 export function BatchPanel() {
@@ -98,6 +120,9 @@ export function BatchPanel() {
   const [dragging, setDragging] = useState(false)
   const [reviews, setReviews] = useState<ReadonlyMap<number, Review>>(new Map())
   const [filter, setFilter] = useState<ReadonlySet<Category>>(ALL)
+  const [query, setQuery] = useState('')
+  const [byConfidence, setByConfidence] = useState(false)
+  const [allFields, setAllFields] = useState(false)
   const [page, setPage] = useState(0)
   const [open, setOpen] = useState<number | null>(null)
   const [restored, setRestored] = useState<{ count: number; saved: number } | null>(null)
@@ -176,14 +201,21 @@ export function BatchPanel() {
 
   const visible = useMemo(() => {
     if (!batch) return []
-    if (filter.size === 0) return [...batch.statuses.keys()]
-    const out: number[] = []
+    let out: number[] = []
     batch.statuses.forEach((s, i) => {
       const cat = reviews.has(i) ? 'done' : s
-      if (cat !== 'confident' && filter.has(cat)) out.push(i)
+      if (filter.size === 0 || (cat !== 'confident' && filter.has(cat))) out.push(i)
     })
+    const q = query.trim().toLowerCase()
+    if (q) {
+      out = out.filter((i) => {
+        const r = batch.records[i]
+        return matches(r.id, r.raw_address, reviews.get(i)?.values ?? r, q)
+      })
+    }
+    if (byConfidence) out.sort((a, b) => batch.records[a].confidence - batch.records[b].confidence || a - b)
     return out
-  }, [batch, reviews, filter])
+  }, [batch, reviews, filter, query, byConfidence])
 
   const pageCount = Math.max(1, Math.ceil(visible.length / PAGE))
   const cur = Math.min(page, pageCount - 1)
@@ -215,15 +247,14 @@ export function BatchPanel() {
     return { kind: same ? 'accepted' : 'edited', values }
   }
 
-  /** Next unchecked uncertain record after `from` that the current filter shows, wrapping around. */
+  /** Next unchecked uncertain record after `from` in the order the table shows (filter, search, sort), wrapping around. */
   function nextUncertain(from: number, done: ReadonlyMap<number, Review>): number | null {
     if (!batch) return null
-    const n = batch.statuses.length
-    for (let k = 1; k < n; k++) {
-      const j = (from + k) % n
-      const s = batch.statuses[j]
-      if (s === 'confident' || done.has(j)) continue
-      if (filter.size > 0 && !filter.has(s)) continue
+    const pos = visible.indexOf(from)
+    const n = visible.length
+    for (let k = 1; k <= n; k++) {
+      const j = visible[(pos + k + n) % n]
+      if (j === from || batch.statuses[j] === 'confident' || done.has(j)) continue
       return j
     }
     return null
@@ -329,7 +360,7 @@ export function BatchPanel() {
       >
         <input
           type="file"
-          accept=".json,application/json"
+          accept=".json,.jsonl,.ndjson,application/json"
           className="visually-hidden"
           onChange={onChange}
           disabled={st.state === 'loading'}
@@ -446,6 +477,41 @@ export function BatchPanel() {
             ))}
           </div>
 
+          <div className="batch-tools">
+            <input
+              type="search"
+              className="input batch-search"
+              value={query}
+              onChange={(e) => {
+                setQuery(e.target.value)
+                setPage(0)
+              }}
+              placeholder={t('batch.search')}
+              aria-label={t('batch.search')}
+            />
+            <button
+              type="button"
+              className={`chip chip-filter${byConfidence ? ' active' : ''}`}
+              aria-pressed={byConfidence}
+              onClick={() => {
+                setByConfidence(!byConfidence)
+                setPage(0)
+              }}
+              title={t('batch.sortConf.title')}
+            >
+              {t('batch.sortConf')}
+            </button>
+            <button
+              type="button"
+              className={`chip chip-filter${allFields ? ' active' : ''}`}
+              aria-pressed={allFields}
+              onClick={() => setAllFields(!allFields)}
+              title={t('batch.allFields.title')}
+            >
+              {t('batch.allFields')}
+            </button>
+          </div>
+
           <p className="hint">
             {t('batch.tableHint')}
           </p>
@@ -456,10 +522,13 @@ export function BatchPanel() {
                 <tr>
                   <th>ID</th>
                   <th>{t('col.raw')}</th>
+                  {allFields && <th>{t(FIELD_LABELS.province)}</th>}
                   <th>{t(FIELD_LABELS.city)}</th>
+                  {allFields && EXTRA_BEFORE_STREET.map((f) => <th key={f}>{t(FIELD_LABELS[f])}</th>)}
                   <th>{t(FIELD_LABELS.street_name)}</th>
                   <th>{t(FIELD_LABELS.house)}</th>
                   <th>{t('col.apartment')}</th>
+                  {allFields && EXTRA_AFTER_APARTMENT.map((f) => <th key={f}>{t(FIELD_LABELS[f])}</th>)}
                   <th>{t('col.confidence')}</th>
                 </tr>
               </thead>
@@ -486,10 +555,13 @@ export function BatchPanel() {
                       <td className="cell-raw" title={r.raw_address}>
                         {r.raw_address || '—'}
                       </td>
+                      {allFields && <td>{v.province ?? '—'}</td>}
                       <td>{v.city ?? '—'}</td>
+                      {allFields && EXTRA_BEFORE_STREET.map((f) => <td key={f}>{v[f] ?? '—'}</td>)}
                       <td>{streetOf(v) || '—'}</td>
                       <td>{v.house ?? '—'}</td>
                       <td>{v.apartment ?? '—'}</td>
+                      {allFields && EXTRA_AFTER_APARTMENT.map((f) => <td key={f}>{v[f] ?? '—'}</td>)}
                       <td className="cell-conf">
                         <ConfidenceBadge status={status} confidence={r.confidence} compact />
                         {review && (
@@ -503,7 +575,7 @@ export function BatchPanel() {
                 })}
                 {visible.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="cell-empty">
+                    <td colSpan={allFields ? 13 : 7} className="cell-empty">
                       {t('batch.noRows')}
                     </td>
                   </tr>

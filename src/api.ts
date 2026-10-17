@@ -17,6 +17,9 @@ export const FIELDS = [
 
 export type Field = (typeof FIELDS)[number]
 export type Source = 'string' | 'directory' | 'absent'
+/** How a directory value was matched: the building, the street, the living area, the town, the written district. */
+export type Level = 'house' | 'street' | 'area' | 'settlement' | 'district'
+export const LEVELS: readonly Level[] = ['house', 'street', 'area', 'settlement', 'district']
 export type Status = 'confident' | 'review' | 'unparsed'
 
 export type AddressRecord = {
@@ -31,6 +34,7 @@ export type ParseResponse = {
   result: AddressRecord
   spans: Span[]
   sources: Partial<Record<Field, Source>>
+  levels: Partial<Record<Field, Level>>
   status: Status
   /** The address in a clean form, shown as a hint under the input. */
   suggestion: string
@@ -79,7 +83,8 @@ function httpError(status: number, body: string): ApiError {
       else if (isObject(e) && typeof e.message === 'string') detail = e.message
     }
   } catch {
-    detail = body.trim().slice(0, 200)
+    // an HTML error page of the proxy says nothing to the user; plain text from the API does
+    if (!/^\s*</.test(body)) detail = body.trim().slice(0, 200)
   }
   const key: TranslationKey =
     status === 400 || status === 422 ? 'api.rejected'
@@ -140,7 +145,14 @@ export async function parseOne(rawAddress: string, signal?: AbortSignal): Promis
       ? (data.status as Status)
       : statusOf(result.confidence)
   const suggestion = typeof data.suggestion === 'string' ? data.suggestion : ''
-  return { result, spans, sources, status, suggestion }
+  const levels: Partial<Record<Field, Level>> = {}
+  if (isObject(data.levels)) {
+    for (const f of FIELDS) {
+      const l = data.levels[f]
+      if (typeof l === 'string' && (LEVELS as readonly string[]).includes(l)) levels[f] = l as Level
+    }
+  }
+  return { result, spans, sources, levels, status, suggestion }
 }
 
 /** The API keeps a slot for a broken input record (no raw_address or not a string): nulls, zero confidence. */

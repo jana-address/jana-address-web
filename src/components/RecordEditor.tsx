@@ -17,7 +17,7 @@ import {
   type ParseResponse,
   type Status,
 } from '../api'
-import { FIELD_GROUP, FIELD_LABELS, MANUAL_META, SOURCE_META } from '../fields'
+import { FIELD_GROUP, FIELD_LABELS, LEVEL_META, MANUAL_META, SOURCE_META } from '../fields'
 import { errorText } from '../i18n/errors'
 import { useI18n } from '../i18n/useI18n'
 import {
@@ -47,7 +47,9 @@ type Props = {
 
 /** Side panel for checking one batch record by hand. A modal dialog: the page behind is inert, Esc closes. */
 export function RecordEditor(props: Props) {
+  const { t } = useI18n()
   const ref = useRef<HTMLDialogElement>(null)
+  const dirtyRef = useRef(false)
   const titleId = useId()
 
   useEffect(() => {
@@ -58,18 +60,24 @@ export function RecordEditor(props: Props) {
     return () => dialog.close()
   }, [])
 
-  function onCancel(e: SyntheticEvent<HTMLDialogElement>) {
-    e.preventDefault() // the parent owns the open state
+  // Esc, a click beside the panel and the close button ask before unsaved edits are lost
+  function requestClose() {
+    if (dirtyRef.current && !window.confirm(t('editor.discard'))) return
     props.onClose()
   }
 
+  function onCancel(e: SyntheticEvent<HTMLDialogElement>) {
+    e.preventDefault() // the parent owns the open state
+    requestClose()
+  }
+
   function onBackdrop(e: MouseEvent<HTMLDialogElement>) {
-    if (e.target === e.currentTarget) props.onClose()
+    if (e.target === e.currentTarget) requestClose()
   }
 
   return (
     <dialog ref={ref} className="drawer" aria-labelledby={titleId} onCancel={onCancel} onClick={onBackdrop}>
-      <EditorBody key={props.index} {...props} titleId={titleId} />
+      <EditorBody key={props.index} {...props} onClose={requestClose} dirtyRef={dirtyRef} titleId={titleId} />
     </dialog>
   )
 }
@@ -100,8 +108,9 @@ function EditorBody({
   onReset,
   onSaveNext,
   onClose,
+  dirtyRef,
   titleId,
-}: Props & { titleId: string }) {
+}: Props & { titleId: string; dirtyRef: { current: boolean } }) {
   const { t, num } = useI18n()
   const original = useMemo(() => valuesOf(record), [record])
   const [form, setForm] = useState<Form>(() => toForm(review?.values ?? original))
@@ -126,6 +135,9 @@ function EditorBody({
 
   const values = fromForm(form)
   const dirty = !sameValues(values, review?.values ?? original)
+  useEffect(() => {
+    dirtyRef.current = dirty
+  }, [dirty, dirtyRef])
 
   function set(f: Field, text: string) {
     setForm((prev) => ({ ...prev, [f]: text }))
@@ -207,6 +219,7 @@ function EditorBody({
               const source = data ? (data.sources[f] ?? (original[f] === null ? 'absent' : 'string')) : null
               const meta = changed ? MANUAL_META : source ? (SOURCE_META[source] ?? SOURCE_META.absent) : null
               const cls = changed ? 'manual' : `src-${source}`
+              const level = !changed && source === 'directory' ? data?.levels[f] : undefined
               return (
                 <div className={`edit-row${changed ? ' changed' : ''}`} key={f}>
                   <label htmlFor={id}>
@@ -240,6 +253,11 @@ function EditorBody({
                     {meta && (
                       <span className={`badge ${cls}`} title={t(meta.title)}>
                         {t(meta.label)}
+                      </span>
+                    )}
+                    {level && (
+                      <span className="level" title={t(LEVEL_META[level].title)}>
+                        {t(LEVEL_META[level].label)}
                       </span>
                     )}
                   </span>

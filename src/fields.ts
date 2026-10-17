@@ -1,4 +1,4 @@
-import type { Field, Source, Status } from './api'
+import type { Field, Level, Source, Status } from './api'
 import type { TranslationKey } from './i18n/translations'
 
 /** Label keys: t(FIELD_LABELS[f]) gives the field name in the current language. */
@@ -49,6 +49,14 @@ export const SOURCE_META: Record<Source, Meta> = {
 }
 
 export const MANUAL_META: Meta = { label: 'source.manual', title: 'source.manual.title' }
+
+export const LEVEL_META: Record<Level, Meta> = {
+  house: { label: 'level.house', title: 'level.house.title' },
+  street: { label: 'level.street', title: 'level.street.title' },
+  area: { label: 'level.area', title: 'level.area.title' },
+  settlement: { label: 'level.settlement', title: 'level.settlement.title' },
+  district: { label: 'level.district', title: 'level.district.title' },
+}
 
 export const STATUS_META: Record<Status, Meta> = {
   confident: { label: 'status.confident', title: 'status.confident.title' },

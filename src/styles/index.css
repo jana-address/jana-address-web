@@ -1015,6 +1015,27 @@ a.logo:focus-visible,
   color: inherit;
 }
 
+.batch-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.batch-search {
+  flex: 1 1 260px;
+  max-width: 420px;
+}
+
+/* how a directory value was matched, next to its badge */
+.level {
+  margin-left: 6px;
+  color: var(--jp-text-secondary);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
 .notice {
   display: flex;
   flex-wrap: wrap;
