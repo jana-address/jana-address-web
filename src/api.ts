@@ -33,10 +33,13 @@ export type ParseResponse = {
   suggestion: string
 }
 
+/** JSON text of id and raw_address of one record exactly as the API returned it. */
+export type Echo = { id: string; raw: string }
+
 export type BatchResponse = {
   records: AddressRecord[]
-  /** Response body exactly as received, for download. */
-  text: string
+  /** Same order as records: the export writes id and raw_address back unchanged. */
+  echoes: Echo[]
 }
 
 export type Health = {
@@ -142,12 +145,120 @@ export async function parseOne(rawAddress: string, signal?: AbortSignal): Promis
   return { result, spans, sources, status, suggestion }
 }
 
-/** Sends the file body unchanged (jury format) and keeps the raw response for download. */
+/** The API keeps a slot for a broken input record (no raw_address or not a string): nulls, zero confidence. */
+function toBatchRecord(v: unknown): AddressRecord {
+  if (isObject(v) && typeof v.raw_address === 'string') return toRecord(v)
+  const o = isObject(v) ? v : {}
+  const raw = o.raw_address === undefined || o.raw_address === null ? '' : JSON.stringify(o.raw_address)
+  return toRecord({ ...o, raw_address: raw })
+}
+
+const WS = new Set([0x20, 0x09, 0x0a, 0x0d])
+
+/**
+ * Raw JSON text of "id" and "raw_address" in every element of a JSON array. JSON.parse would turn
+ * 12345678901234567890 into 12345678901234567000 and drop escapes, so the export copies the text instead.
+ * Returns null if the text is not an array of values (the caller then falls back to JSON.stringify).
+ */
+export function scanEchoes(text: string): Echo[] | null {
+  const n = text.length
+  let i = 0
+  const ws = () => {
+    while (i < n && WS.has(text.charCodeAt(i))) i++
+  }
+  const skipString = () => {
+    i++ // opening quote
+    while (i < n) {
+      const c = text.charCodeAt(i++)
+      if (c === 0x5c) i++
+      else if (c === 0x22) return
+    }
+    throw new SyntaxError('unterminated string')
+  }
+  const skipValue = () => {
+    const c = text.charCodeAt(i)
+    if (c === 0x22) return skipString()
+    if (c === 0x7b || c === 0x5b) {
+      let depth = 0
+      while (i < n) {
+        const d = text.charCodeAt(i)
+        if (d === 0x22) {
+          skipString()
+          continue
+        }
+        i++
+        if (d === 0x7b || d === 0x5b) depth++
+        else if ((d === 0x7d || d === 0x5d) && --depth === 0) return
+      }
+      throw new SyntaxError('unterminated value')
+    }
+    while (i < n) {
+      const d = text.charCodeAt(i)
+      if (d === 0x2c || d === 0x7d || d === 0x5d || WS.has(d)) return
+      i++
+    }
+  }
+
+  try {
+    if (text.charCodeAt(0) === 0xfeff) i = 1
+    ws()
+    if (text.charCodeAt(i++) !== 0x5b) return null
+    const out: Echo[] = []
+    ws()
+    if (text.charCodeAt(i) === 0x5d) return out
+    for (;;) {
+      ws()
+      let id = 'null'
+      let raw = 'null'
+      if (text.charCodeAt(i) === 0x7b) {
+        i++
+        ws()
+        if (text.charCodeAt(i) === 0x7d) i++
+        else
+          for (;;) {
+            ws()
+            const ks = i
+            skipString()
+            const key = text.slice(ks, i)
+            ws()
+            if (text.charCodeAt(i++) !== 0x3a) return null
+            ws()
+            const vs = i
+            skipValue()
+            if (key === '"id"') id = text.slice(vs, i)
+            else if (key === '"raw_address"') raw = text.slice(vs, i)
+            ws()
+            const c = text.charCodeAt(i++)
+            if (c === 0x7d) break
+            if (c !== 0x2c) return null
+          }
+      } else {
+        skipValue()
+      }
+      out.push({ id, raw })
+      ws()
+      const c = text.charCodeAt(i++)
+      if (c === 0x5d) return out
+      if (c !== 0x2c) return null
+    }
+  } catch {
+    return null
+  }
+}
+
+function echoOf(v: unknown): Echo {
+  const o = isObject(v) ? v : {}
+  return { id: JSON.stringify(o.id) ?? 'null', raw: JSON.stringify(o.raw_address) ?? 'null' }
+}
+
+/** Sends the file body unchanged (jury format). */
 export async function parseBatch(body: string, signal?: AbortSignal): Promise<BatchResponse> {
   const text = await post('/api/v1/parse/batch', body, signal)
   const data = parseJson(text)
   if (!Array.isArray(data)) throw new ApiError('Сервер вернул не массив записей')
-  return { records: data.map(toRecord), text }
+  const scanned = scanEchoes(text)
+  const echoes = scanned && scanned.length === data.length ? scanned : data.map(echoOf)
+  return { records: data.map(toBatchRecord), echoes }
 }
 
 export async function fetchHealth(signal?: AbortSignal): Promise<Health> {
