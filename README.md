@@ -1,37 +1,66 @@
 # jana-address-web
 
-Веб-интерфейс Jana Address (React 19.2 + Vite 8.2, сборка в nginx 1.30).
+The web UI of Jana Address (React 19.2 + Vite 8.2, served by nginx 1.30).
 
-Запускается вместе с API из репозитория `jana-address-api`, где этот репо подключён как
-submodule `web/`: `docker compose up`, интерфейс на http://localhost:3000. Отдельно для разработки:
+## Running
+
+The UI runs together with the API from the `jana-address-api` repository, where this
+repository is the submodule `web/`:
+
+```bash
+git clone --recurse-submodules https://github.com/jana-address/jana-address-api.git
+cd jana-address-api
+docker compose up
+```
+
+The UI is on http://localhost:3000.
+
+For development, on its own:
 
 ```bash
 npm ci
-npm run dev   # http://localhost:5173, /api проксируется на http://localhost:8080
+npm run dev   # http://localhost:5173, /api is proxied to http://localhost:8080
 ```
 
-## Что умеет
+## Building
 
-- **Проверка одной строки.** Разбор на лету, пока вводите адрес. Фрагменты строки
-  подсвечены по полям, у каждого поля бейдж источника: «из строки», «справочник»
-  или «нет». У восстановленного поля указано, как оно найдено: по дому, по соседним домам, по улице,
-  по массиву, по населённому пункту или по району.
-- **Загрузка файла.** JSON-массив `[{"id", "raw_address"}, …]` в формате жюри или
-  NDJSON (`.jsonl`). Можно перетащить файл или выбрать его. Файл уходит в
-  `POST /api/v1/parse/batch` без изменений.
-- **Таблица результатов.** Итоги: всего, уверенных, на проверку, проверено вручную,
-  время разбора. Фильтры «Проверить» / «Не разобрано» / «Исправлено» включаются
-  сами, если есть неуверенные записи. Есть поиск по строке, городу и улице,
-  сортировка «сначала неуверенные» и переключатель «все поля».
-- **Ручная правка.** Боковая панель с подсветкой, подсказкой и всеми 11 полями.
-  - «Сохранить и далее» (Enter) переходит к следующей непроверенной записи в
-    порядке таблицы. Ещё есть «Сохранить», «Принять как есть» и «Сбросить».
-  - Esc и клик мимо панели спрашивают, прежде чем потерять несохранённые правки.
-  - Правки хранятся в браузере и восстанавливаются при повторной загрузке того же файла.
-- **Выгрузка.** «Скачать JSON» отдаёт все записи с правками, «Только исправления» —
-  только проверенные. Формат — 14 ключей в порядке ТЗ. `id` и `raw_address`
-  копируются из ответа API побайтно, у проверенных записей `confidence` = 1.
-- Языки kk / ru / en, светлая и тёмная тема.
+```bash
+npm run build   # tsc --noEmit && vite build, output in dist/
+```
 
-Шрифт Inter подключён локально (`@fontsource-variable/inter`), CSP разрешает
-только свой origin: интерфейс не делает внешних запросов и работает без сети.
+`docker compose up` in `jana-address-api` builds the image from the `Dockerfile` in this
+repository: `npm run build` in a Node stage, then `dist/` is served by nginx 1.30.
+
+## Screens
+
+- **Check one line.** The address is parsed as you type. Fragments of the line are
+  highlighted by field, and every field has a source badge: "from text", "directory" or "none"
+  (in Russian «из строки», «справочник», «нет»). A restored field shows how it was found: by
+  house, by neighbouring houses, by street, by living area, by settlement or by district.
+- **File upload.** A JSON array `[{"id", "raw_address"}, …]` in the jury format, or NDJSON
+  (`.jsonl`). Drag the file in or choose it. The file goes to `POST /api/v1/parse/batch`
+  unchanged.
+- **Results table.** Totals: all records, confident, to review, reviewed by hand, parse time.
+  The filters "Review" / "Unparsed" / "Corrected" turn on by themselves if there are
+  uncertain records. There is search by line, city and street, the sort "Least confident
+  first" and the "All fields" switch.
+- **Manual correction.** A side panel with highlighting, the suggestion and all 11 fields.
+  - "Save and next" (Enter) goes to the next unreviewed record in table order. There are also
+    "Save", "Accept as is" and "Reset".
+  - Esc and a click outside the panel ask before losing unsaved edits.
+  - Edits are stored in the browser and restored when the same file is uploaded again.
+- **Download.** "Download JSON" gives all records with the edits; "Corrections only" gives only
+  the reviewed ones.
+- Languages kk / ru / en, light and dark theme.
+
+## File formats
+
+| Direction | Format |
+|---|---|
+| Upload | JSON array `[{"id", "raw_address"}, …]` (jury format) or NDJSON (`.jsonl`) |
+| Download | JSON array; every record has 14 keys in the order of the case brief. `id` and `raw_address` are copied from the API response byte for byte; reviewed records have `confidence` = 1 |
+
+## Offline
+
+The Inter font is bundled locally (`@fontsource-variable/inter`), and the CSP allows only
+the page's own origin: the UI makes no external requests and works without a network.
