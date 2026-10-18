@@ -15,7 +15,8 @@ docker compose up
 
 The UI is on http://localhost:3000.
 
-For development, on its own:
+For development, on its own (Node 24: ≥ 24.11 and < 25, `engine-strict` is on; the Dockerfile uses
+`node:24.22.0-alpine`):
 
 ```bash
 npm ci
