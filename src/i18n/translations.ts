@@ -209,7 +209,7 @@ const ru = {
   'docs.batch.p.raw': 'Адрес одной строкой.',
   'docs.batch.formats': 'Также принимает NDJSON и multipart/form-data с файлом в поле file.',
   'docs.batch.returns': 'Массив Address. Запись, которую не удалось разобрать, тоже есть в ответе: поля null, confidence 0.',
-  'docs.batch.limits': 'Тело до 64 МиБ и до 1 000 000 записей. 1 000 записей разбираются примерно за 5 мс.',
+  'docs.batch.limits': 'Тело до 128 МиБ и до 1 000 000 записей. 1 000 записей разбираются примерно за 5 мс.',
   'docs.parse.summary': 'Разбирает одну строку и дополнительно возвращает подсветку, источники значений и подсказку.',
   'docs.parse.p.raw': 'Адрес одной строкой, до 1 МиБ.',
   'docs.parse.r.result': 'Разобранный адрес, id равен null.',
@@ -239,7 +239,7 @@ const ru = {
   'docs.addr.confidence': 'От 0 до 1: от 0,8 — confident, от 0,5 — review, ниже — unparsed.',
   'docs.errors.summary': 'Ошибка относится ко всему запросу. Тело: {"error": "…"}.',
   'docs.err.400': 'Тело пустое или не JSON; для /parse — нет raw_address.',
-  'docs.err.413': 'Больше 1 000 000 записей или тело больше 64 МиБ.',
+  'docs.err.413': 'Больше 1 000 000 записей или тело больше 128 МиБ.',
   'docs.err.500': 'Внутренняя ошибка сервера.',
 }
 
@@ -442,7 +442,7 @@ const kk: Dictionary = {
   'docs.batch.p.raw': 'Бір жолдағы мекенжай.',
   'docs.batch.formats': 'Сондай-ақ NDJSON және file өрісіндегі файлы бар multipart/form-data қабылданады.',
   'docs.batch.returns': 'Address массиві. Талданбаған жазба да жауапта болады: өрістер null, confidence 0.',
-  'docs.batch.limits': 'Дене 64 МиБ-қа дейін және 1 000 000 жазбаға дейін. 1 000 жазба шамамен 5 мс-та талданады.',
+  'docs.batch.limits': 'Дене 128 МиБ-қа дейін және 1 000 000 жазбаға дейін. 1 000 жазба шамамен 5 мс-та талданады.',
   'docs.parse.summary': 'Бір жолды талдап, қосымша бөлектеуді, мәндердің көздерін және ұсынысты қайтарады.',
   'docs.parse.p.raw': 'Бір жолдағы мекенжай, 1 МиБ-қа дейін.',
   'docs.parse.r.result': 'Талданған мекенжай, id мәні null.',
@@ -472,7 +472,7 @@ const kk: Dictionary = {
   'docs.addr.confidence': '0-ден 1-ге дейін: 0,8-ден — confident, 0,5-тен — review, төмен — unparsed.',
   'docs.errors.summary': 'Қате бүкіл сұранымға қатысты. Дене: {"error": "…"}.',
   'docs.err.400': 'Дене бос немесе JSON емес; /parse үшін raw_address жоқ.',
-  'docs.err.413': '1 000 000-нан көп жазба немесе дене 64 МиБ-тан үлкен.',
+  'docs.err.413': '1 000 000-нан көп жазба немесе дене 128 МиБ-тан үлкен.',
   'docs.err.500': 'Сервердің ішкі қатесі.',
 }
 
@@ -670,7 +670,7 @@ const en: Dictionary = {
   'docs.batch.p.raw': 'The address as a single line.',
   'docs.batch.formats': 'Also accepts NDJSON and multipart/form-data with the file in the file field.',
   'docs.batch.returns': 'An array of Address. A record that could not be parsed is still there: fields are null, confidence is 0.',
-  'docs.batch.limits': 'Body up to 64 MiB and up to 1,000,000 records. 1,000 records take about 5 ms.',
+  'docs.batch.limits': 'Body up to 128 MiB and up to 1,000,000 records. 1,000 records take about 5 ms.',
   'docs.parse.summary': 'Parses one line and also returns highlighting, value sources and a suggestion.',
   'docs.parse.p.raw': 'The address as a single line, up to 1 MiB.',
   'docs.parse.r.result': 'The parsed address, id is null.',
@@ -700,7 +700,7 @@ const en: Dictionary = {
   'docs.addr.confidence': 'From 0 to 1: from 0.8 — confident, from 0.5 — review, below — unparsed.',
   'docs.errors.summary': 'An error applies to the whole request. Body: {"error": "…"}.',
   'docs.err.400': 'The body is empty or not JSON; for /parse, raw_address is missing.',
-  'docs.err.413': 'More than 1,000,000 records or a body over 64 MiB.',
+  'docs.err.413': 'More than 1,000,000 records or a body over 128 MiB.',
   'docs.err.500': 'Internal server error.',
 }
 
